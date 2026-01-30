@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "JanMitra ",
+    "slug": "janmitra-mobile",
+    "scheme": "janmitra",
+    "extra": {
+      "auth0Domain": "YOUR_TENANT.auth0.com",
+      "auth0ClientId": "YOUR_MOBILE_CLIENT_ID",
+      "auth0Audience": "https://api.janastra.local",
+      "apiBase": "http://10.65.211.168:4000",
+      "eas": {
+        "projectId": "1e2246ca-3cf4-4f78-a9ea-d29ce83e5db8"
+      }
+    },
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/playstore.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/JanMitra-logo.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.janmitra.mobile",
+      "icon": "./assets/Assets.xcassets/AppIcon.appiconset/1024.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.janmitra.mobile",
+      "icon": "./assets/playstore.png"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ]
+  }
+}
