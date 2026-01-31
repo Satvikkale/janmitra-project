@@ -2,7 +2,16 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 const API = (require('expo-constants').default.expoConfig?.extra as any).apiBase as string;
 
-type Ctx = { user?: any; accessToken?: string; login: (identifier:string, password:string)=>Promise<void>; register: (p:{name:string;email?:string;phone?:string;password:string})=>Promise<void>; logout: ()=>Promise<void>; };
+type AuthResult = { accessToken: string; refreshToken: string; user: any };
+
+type Ctx = {
+  user?: any;
+  accessToken?: string;
+  login: (identifier: string, password: string) => Promise<AuthResult>;
+  register: (p: { name: string; email?: string; phone?: string; password: string }) => Promise<AuthResult>;
+  logout: () => Promise<void>;
+};
+
 const C = createContext<Ctx>({} as any);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -17,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(j.accessToken); setUser(j.user);
       await SecureStore.setItemAsync('jm_access', j.accessToken);
       await SecureStore.setItemAsync('jm_refresh', j.refreshToken);
+      return { accessToken: j.accessToken as string, refreshToken: j.refreshToken as string, user: j.user };
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.message || 'Network error. Please check your connection.');
@@ -31,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(j.accessToken); setUser(j.user);
       await SecureStore.setItemAsync('jm_access', j.accessToken);
       await SecureStore.setItemAsync('jm_refresh', j.refreshToken);
+      return { accessToken: j.accessToken as string, refreshToken: j.refreshToken as string, user: j.user };
     } catch (error: any) {
       console.error('Register error:', error);
       throw new Error(error.message || 'Network error. Please check your connection.');

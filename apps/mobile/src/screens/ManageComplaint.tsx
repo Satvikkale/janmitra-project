@@ -30,6 +30,28 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
   const [status, setStatus] = useState('');
   const [notes, setNotes] = useState('');
 
+  const apiStatusToUi = (apiStatus?: string) => {
+    switch (apiStatus) {
+      case 'open':
+        return 'pending';
+      case 'in_progress':
+        return 'in-progress';
+      default:
+        return apiStatus || '';
+    }
+  };
+
+  const uiStatusToApi = (uiStatus?: string) => {
+    switch (uiStatus) {
+      case 'pending':
+        return 'open';
+      case 'in-progress':
+        return 'in_progress';
+      default:
+        return uiStatus || '';
+    }
+  };
+
   useEffect(() => {
     fetchComplaint();
   }, [complaintId]);
@@ -38,13 +60,11 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
     try {
       setLoading(true);
       const data = await apiFetch(`/v1/complaints/${complaintId}`, accessToken!);
-      // Map 'open' status to 'pending' for consistency
-      if (data.status === 'open') {
-        data.status = 'pending';
-      }
+
+      data.status = apiStatusToUi(data.status);
       setComplaint(data);
       setStatus(data.status);
-      setNotes(data.notes || '');
+      setNotes(data.note ?? data.notes ?? '');
     } catch (error) {
       console.error('Failed to fetch complaint:', error);
       Alert.alert('Error', 'Failed to load complaint details');
@@ -56,11 +76,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
   const handleUpdate = async () => {
     try {
       setUpdating(true);
-      // Map 'pending' back to 'open' for backend
-      const backendStatus = status === 'pending' ? 'open' : status;
-      await apiFetch(`/v1/complaints/${complaintId}`, accessToken!, {
+      const backendStatus = uiStatusToApi(status);
+      await apiFetch(`/v1/complaints/${complaintId}/status`, accessToken!, {
         method: 'PATCH',
-        body: JSON.stringify({ status: backendStatus, notes }),
+        body: JSON.stringify({ status: backendStatus, note: notes || undefined }),
       });
       Alert.alert('Success', 'Complaint updated successfully');
       onUpdated();

@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: COLORS.error,
+    color: COLORS.danger,
   },
   scrollView: {
     flex: 1,

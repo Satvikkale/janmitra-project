@@ -30,6 +30,28 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'resolved'>('all');
 
+  const apiStatusToUi = (apiStatus?: string) => {
+    switch (apiStatus) {
+      case 'open':
+        return 'pending';
+      case 'in_progress':
+        return 'in-progress';
+      default:
+        return apiStatus || '';
+    }
+  };
+
+  const uiStatusToApi = (uiStatus?: string) => {
+    switch (uiStatus) {
+      case 'pending':
+        return 'open';
+      case 'in-progress':
+        return 'in_progress';
+      default:
+        return uiStatus || '';
+    }
+  };
+
   useEffect(() => {
     fetchComplaints();
   }, [filter]);
@@ -37,17 +59,16 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
   const fetchComplaints = async () => {
     try {
       setLoading(true);
-      const statusParam = filter === 'all' ? '' : `&status=${filter === 'pending' ? 'open' : filter}`;
+      const statusParam = filter === 'all' ? '' : `&status=${uiStatusToApi(filter)}`;
       const data = await apiFetch(`/v1/complaints?societyId=${societyId}${statusParam}`, accessToken!);
-      // Map 'open' status to 'pending' for consistency
       const mapped = (data.complaints || data || []).map((c: any) => ({
         ...c,
-        status: c.status === 'open' ? 'pending' : c.status
+        status: apiStatusToUi(c.status)
       }));
       setComplaints(mapped);
       
       // Calculate stats
-      const allComplaints = filter === 'all' ? mapped : complaints;
+      const allComplaints = mapped;
       const newStats = {
         total: allComplaints.length,
         pending: allComplaints.filter((c: any) => c.status === 'pending').length,
@@ -181,7 +202,10 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
                 </Text>
                 
                 {complaint.location && (
-                  <Text style={styles.location}>📍 {complaint.location}</Text>
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={16} color={COLORS.textLight} style={{ marginRight: 6 }} />
+                    <Text style={styles.location}>{complaint.location}</Text>
+                  </View>
                 )}
 
                 <View style={styles.complaintFooter}>
@@ -337,10 +361,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 20,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   location: {
     fontSize: 12,
     color: COLORS.textLight,
-    marginBottom: 8,
   },
   complaintFooter: {
     flexDirection: 'row',
