@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const logo = require('../../assets/JanMitra-logo.jpg'); // Full branding with text
 
 type RouteName = 'Login' | 'RegisterUser' | 'RegisterSociety';
 
-export default function Landing({ onNavigate }: { onNavigate?: (route: RouteName) => void }) {
+export default function Landing({ onNavigate }: Readonly<{ onNavigate?: (route: RouteName) => void }>) {
   const navigate = onNavigate || (() => {});
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -25,15 +26,15 @@ export default function Landing({ onNavigate }: { onNavigate?: (route: RouteName
         
         <View style={styles.featureGrid}>
           <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>📸</Text>
+            <Ionicons name="camera-outline" size={18} color="#7DD3FC" />
             <Text style={styles.featureText}>Photo-Only</Text>
           </View>
           <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>🤖</Text>
+            <Ionicons name="sparkles-outline" size={18} color="#7DD3FC" />
             <Text style={styles.featureText}>AI Powered</Text>
           </View>
           <View style={styles.featurePill}>
-            <Text style={styles.featureIcon}>⚡</Text>
+            <Ionicons name="flash-outline" size={18} color="#7DD3FC" />
             <Text style={styles.featureText}>Real-time</Text>
           </View>
         </View>
@@ -42,17 +43,27 @@ export default function Landing({ onNavigate }: { onNavigate?: (route: RouteName
       {/* CTA Buttons */}
       <View style={styles.ctaSection}>
         <TouchableOpacity style={styles.primaryCta} onPress={() => navigate('RegisterUser')}>
-          <Text style={styles.primaryCtaText}>Get Started as Resident</Text>
+          <View style={styles.ctaTitleRow}>
+            <Ionicons name="person-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.primaryCtaText}>Get Started as Resident</Text>
+          </View>
           <Text style={styles.ctaSubtext}>Report issues in your society</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.secondaryCta} onPress={() => navigate('RegisterSociety')}>
-          <Text style={styles.secondaryCtaText}>Register Your Society</Text>
+          <View style={styles.ctaTitleRow}>
+            <Ionicons name="business-outline" size={20} color="#10B981" style={{ marginRight: 8 }} />
+            <Text style={styles.secondaryCtaText}>Register Your Society</Text>
+          </View>
           <Text style={styles.ctaSubtext}>Become a society head</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigate('Login')}>
-          <Text style={styles.linkText}>Already have an account? Login →</Text>
+          <View style={styles.linkRow}>
+            <Ionicons name="log-in-outline" size={16} color="#7DD3FC" style={{ marginRight: 6 }} />
+            <Text style={styles.linkText}>Already have an account? Login</Text>
+            <Ionicons name="arrow-forward" size={16} color="#7DD3FC" style={{ marginLeft: 6 }} />
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -180,13 +191,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(125, 211, 252, 0.3)',
   },
-  featureIcon: {
-    fontSize: 18,
-  },
   featureText: {
     color: '#7DD3FC',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  ctaTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // CTA Section

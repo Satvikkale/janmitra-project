@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -11,6 +10,8 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
@@ -258,6 +259,7 @@ export default function ResidentDashboard() {
                   style={[styles.actionCard, { backgroundColor: '#E8F5E9' }]}
                   onPress={() => setCurrentScreen('societyDashboard')}
                 >
+                  <Ionicons name="stats-chart-outline" size={40} color="#2E7D32" style={{ marginBottom: 8 }} />
                   <Text style={styles.actionTitle}>Manage Society</Text>
                   <Text style={styles.actionSubtitle}>View & manage all complaints</Text>
                 </TouchableOpacity>
@@ -268,6 +270,7 @@ export default function ResidentDashboard() {
                 style={[styles.actionCard, { backgroundColor: '#FFEBEE' }]}
                 onPress={() => setCurrentScreen('raiseComplaint')}
               >
+                <Ionicons name="camera-outline" size={40} color="#C62828" style={{ marginBottom: 8 }} />
                 <Text style={styles.actionTitle}>Raise Issue</Text>
                 <Text style={styles.actionSubtitle}>Take photo & report</Text>
               </TouchableOpacity>
@@ -277,6 +280,7 @@ export default function ResidentDashboard() {
                 style={[styles.actionCard, { backgroundColor: '#E3F2FD' }]}
                 onPress={() => setCurrentScreen('myComplaints')}
               >
+                <Ionicons name="clipboard-outline" size={40} color="#1565C0" style={{ marginBottom: 8 }} />
                 <Text style={styles.actionTitle}>My Issues</Text>
                 <Text style={styles.actionSubtitle}>Track status</Text>
               </TouchableOpacity>
@@ -286,6 +290,7 @@ export default function ResidentDashboard() {
                 style={[styles.actionCard, { backgroundColor: '#FFF3E0' }]}
                 onPress={() => setCurrentScreen('announcements')}
               >
+                <Ionicons name="megaphone-outline" size={40} color="#EF6C00" style={{ marginBottom: 8 }} />
                 <Text style={styles.actionTitle}>Announcements</Text>
                 <Text style={styles.actionSubtitle}>Society news</Text>
               </TouchableOpacity>
@@ -295,6 +300,7 @@ export default function ResidentDashboard() {
                 style={[styles.actionCard, { backgroundColor: '#F3E5F5' }]}
                 onPress={() => Alert.alert('Coming Soon', 'Society information will be available soon!')}
               >
+                <Ionicons name="information-circle-outline" size={40} color="#6A1B9A" style={{ marginBottom: 8 }} />
                 <Text style={styles.actionTitle}>Society Info</Text>
                 <Text style={styles.actionSubtitle}>Details & stats</Text>
               </TouchableOpacity>
@@ -340,6 +346,7 @@ export default function ResidentDashboard() {
               ]);
             }}
           >
+            <MaterialIcons name="logout" size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -535,6 +542,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
     borderWidth: 1,
     borderColor: COLORS.border,
   },

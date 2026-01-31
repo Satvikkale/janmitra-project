@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Alert,
-  SafeAreaView,
   Text,
   TextInput,
   View,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 

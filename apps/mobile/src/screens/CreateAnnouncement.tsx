@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -11,6 +10,8 @@ import {
   Alert,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 import { COLORS } from '../constants/theme';
@@ -31,13 +32,13 @@ type CreateAnnouncementProps = {
   editAnnouncement?: Announcement | null;
 };
 
-const CATEGORIES = [
-  { key: 'general', label: 'General', icon: '📢' },
-  { key: 'maintenance', label: 'Maintenance', icon: '🔧' },
-  { key: 'event', label: 'Event', icon: '🎉' },
-  { key: 'emergency', label: 'Emergency', icon: '🚨' },
-  { key: 'meeting', label: 'Meeting', icon: '👥' },
-  { key: 'notice', label: 'Notice', icon: '📋' },
+const CATEGORIES: Array<{ key: string; label: string; iconName: any; color: string }> = [
+  { key: 'general', label: 'General', iconName: 'megaphone-outline', color: '#2196F3' },
+  { key: 'maintenance', label: 'Maintenance', iconName: 'construct-outline', color: '#FF9800' },
+  { key: 'event', label: 'Event', iconName: 'calendar-outline', color: '#9C27B0' },
+  { key: 'emergency', label: 'Emergency', iconName: 'warning-outline', color: '#F44336' },
+  { key: 'meeting', label: 'Meeting', iconName: 'people-outline', color: '#4CAF50' },
+  { key: 'notice', label: 'Notice', iconName: 'document-text-outline', color: '#607D8B' },
 ];
 
 const PRIORITIES = [
@@ -67,6 +68,7 @@ export default function CreateAnnouncement({
   );
 
   const isEditing = !!editAnnouncement;
+  const selectedCategory = CATEGORIES.find((c) => c.key === category) ?? CATEGORIES[0];
 
   async function handleSubmit() {
     if (!title.trim()) {
@@ -148,7 +150,10 @@ export default function CreateAnnouncement({
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>← Cancel</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="close" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.backText}>Cancel</Text>
+          </View>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isEditing ? 'Edit Announcement' : 'New Announcement'}
@@ -201,7 +206,12 @@ export default function CreateAnnouncement({
                 ]}
                 onPress={() => setCategory(cat.key)}
               >
-                <Text style={styles.optionIcon}>{cat.icon}</Text>
+                <Ionicons
+                  name={cat.iconName}
+                  size={18}
+                  color={category === cat.key ? '#FFF' : cat.color}
+                  style={styles.optionIcon}
+                />
                 <Text style={[
                   styles.optionText,
                   category === cat.key && styles.optionTextActive,
@@ -240,7 +250,10 @@ export default function CreateAnnouncement({
         {/* Pin Toggle */}
         <View style={styles.toggleRow}>
           <View>
-            <Text style={styles.label}>📌 Pin Announcement</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="pin-outline" size={16} color={COLORS.text} style={{ marginRight: 6 }} />
+              <Text style={styles.label}>Pin Announcement</Text>
+            </View>
             <Text style={styles.toggleHint}>Pinned announcements appear at the top</Text>
           </View>
           <Switch
@@ -254,7 +267,10 @@ export default function CreateAnnouncement({
         {/* Expiry Toggle */}
         <View style={styles.toggleRow}>
           <View>
-            <Text style={styles.label}>⏰ Set Expiry Date</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="time-outline" size={16} color={COLORS.text} style={{ marginRight: 6 }} />
+              <Text style={styles.label}>Set Expiry Date</Text>
+            </View>
             <Text style={styles.toggleHint}>Auto-hide after this date</Text>
           </View>
           <Switch
@@ -311,10 +327,11 @@ export default function CreateAnnouncement({
             isPinned && styles.previewPinned,
           ]}>
             <View style={styles.previewHeader}>
-              <Text style={styles.previewCategory}>
-                {CATEGORIES.find(c => c.key === category)?.icon} {CATEGORIES.find(c => c.key === category)?.label}
-              </Text>
-              {isPinned && <Text>📌</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Ionicons name={selectedCategory.iconName} size={14} color={selectedCategory.color} style={{ marginRight: 6 }} />
+                <Text style={styles.previewCategory}>{selectedCategory.label}</Text>
+              </View>
+              {isPinned && <Ionicons name="pin" size={14} color={COLORS.textSecondary} />}
             </View>
             <Text style={styles.previewTitle} numberOfLines={2}>
               {title || 'Announcement Title'}

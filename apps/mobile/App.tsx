@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, TouchableOpacity, Platform, SafeAreaView, Text, View, Alert, BackHandler } from 'react-native';
+import { ActivityIndicator, TouchableOpacity, Text, View, Alert, BackHandler } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, useLocalAuth } from './src/auth/useLocalAuth';
 import { apiFetch } from './src/api';
 import JoinSociety from './src/screens/JoinSociety';
@@ -77,7 +79,7 @@ function MainApp() {
     if (navigationStack.length > 1) {
       const newStack = [...navigationStack];
       newStack.pop();
-      const previousScreen = newStack[newStack.length - 1] as any;
+      const previousScreen = newStack.at(-1) as any;
       setNavigationStack(newStack);
       setCurrentScreen(previousScreen);
     }
@@ -95,7 +97,10 @@ function MainApp() {
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
           <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card }}>
             <TouchableOpacity onPress={handleBack}>
-              <Text style={{ color: COLORS.primary, fontSize: 16 }}>← Back</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={{ color: COLORS.primary, fontSize: 16 }}>Back</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <Login onNavigateRegister={() => handleNavigate('RegisterUser')} />
@@ -105,17 +110,23 @@ function MainApp() {
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
           <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card }}>
             <TouchableOpacity onPress={handleBack}>
-              <Text style={{ color: COLORS.primary, fontSize: 16 }}>← Back</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={{ color: COLORS.primary, fontSize: 16 }}>Back</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <RegisterUser onNavigateLogin={() => handleNavigate('Login')} />
         </SafeAreaView>
       )}
       {currentScreen === 'RegisterSociety' && (
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: Platform.OS === 'android' ? 24 : 0 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
           <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.card }}>
             <TouchableOpacity onPress={handleBack}>
-              <Text style={{ color: COLORS.primary, fontSize: 16 }}>← Back</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={{ color: COLORS.primary, fontSize: 16 }}>Back</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <JoinSociety onJoined={() => {
@@ -165,14 +176,14 @@ function AuthedApp() {
   // If no approved memberships, show join/onboard flow
   if (approved.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: Platform.OS === 'android' ? 24 : 0 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
         <View style={{ padding: 16 }}>
           <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>Welcome, {user?.name}!</Text>
           {pending.length > 0 ? (
             <Text style={{ marginBottom: 12, color: '#666' }}>
               {pending.some(p => p.role === 'society_head') 
-                ? '⏳ Your society registration is awaiting platform admin approval.'
-                : '⏳ Your membership request is pending. You\'ll get access once approved.'
+                ? 'Your society registration is awaiting platform admin approval.'
+                : 'Your membership request is pending. You\'ll get access once approved.'
               }
             </Text>
           ) : (
@@ -192,7 +203,7 @@ function AuthedApp() {
   // For society heads, show HeadPending screen
   // For residents, show ResidentDashboard
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background, paddingTop: Platform.OS === 'android' ? 24 : 0 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
       {isHead ? (
         <HeadPending />
       ) : (
@@ -204,8 +215,10 @@ function AuthedApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

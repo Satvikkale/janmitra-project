@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import Constants from 'expo-constants';
 import { useLocalAuth } from '../auth/useLocalAuth';
@@ -205,7 +205,7 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
                 </View>
               )}
               <Text style={styles.hint}>
-                💡 Don't see your society? Ask your society head to register it first from "Society Onboarding".
+                Tip: Don't see your society? Ask your society head to register it first from "Society Onboarding".
               </Text>
 
               <Text style={styles.label}>Password *</Text>

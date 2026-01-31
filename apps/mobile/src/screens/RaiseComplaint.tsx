@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -10,6 +9,8 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
@@ -135,7 +136,7 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
 
       setAnalyzing(false);
       Alert.alert(
-        '✅ Issue Reported!',
+        'Issue Reported',
         `Your complaint has been submitted successfully.\n\nCategory: ${result.category || 'General'}\nStatus: Pending Review`,
         [
           {
@@ -163,7 +164,10 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
         <View style={styles.header}>
           {onBack && (
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Text style={styles.backText}>← Back</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.backText}>Back</Text>
+              </View>
             </TouchableOpacity>
           )}
           <Text style={styles.title}>Report an Issue</Text>
@@ -174,7 +178,10 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
         {analyzing && (
           <View style={styles.analyzingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.analyzingText}>🤖 AI is analyzing your photo...</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <Ionicons name="sparkles-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.analyzingText}>AI is analyzing your photo...</Text>
+            </View>
             <Text style={styles.analyzingSubtext}>Detecting issue type and severity</Text>
           </View>
         )}
@@ -183,7 +190,7 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
         {!photo ? (
           <View style={styles.promptContainer}>
             <View style={styles.iconCircle}>
-              <Text style={styles.iconText}>📸</Text>
+              <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
             </View>
             <Text style={styles.promptTitle}>Snap & Report</Text>
             <Text style={styles.promptMessage}>
@@ -191,11 +198,17 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
             </Text>
 
             <TouchableOpacity style={styles.cameraButton} onPress={takePhoto}>
-              <Text style={styles.cameraButtonText}>📷 Open Camera</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="camera" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.cameraButtonText}>Open Camera</Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.galleryButton} onPress={pickFromGallery}>
-              <Text style={styles.galleryButtonText}>🖼️ Choose from Gallery</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="images-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.galleryButtonText}>Choose from Gallery</Text>
+              </View>
             </TouchableOpacity>
           </View>
         ) : (
@@ -208,7 +221,10 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
                 onPress={() => setPhoto(null)}
                 disabled={uploading}
               >
-                <Text style={styles.retakeText}>🔄 Retake Photo</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="refresh" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+                  <Text style={styles.retakeText}>Retake Photo</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -219,7 +235,10 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
                 {uploading ? (
                   <ActivityIndicator color="#FFF" size="small" />
                 ) : (
-                  <Text style={styles.submitButtonText}>✅ Submit Issue</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.submitButtonText}>Submit Issue</Text>
+                  </View>
                 )}
               </TouchableOpacity>
             </View>
@@ -228,7 +247,10 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
 
         {/* Info Box */}
         <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>💡 How it works</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons name="bulb-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+            <Text style={styles.infoTitle}>How it works</Text>
+          </View>
           <Text style={styles.infoText}>
             1. Take a clear photo of the issue{'\n'}
             2. AI identifies the problem automatically{'\n'}

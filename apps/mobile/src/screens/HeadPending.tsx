@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Alert, 
   TouchableOpacity, 
-  SafeAreaView, 
   Text, 
   View, 
   ActivityIndicator, 
@@ -10,6 +9,8 @@ import {
   RefreshControl,
   BackHandler 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../constants/theme';
@@ -124,7 +125,7 @@ export default function HeadPending() {
       await apiFetch(`/v1/societies/${societyId}/memberships/${encodeURIComponent(userSub)}/approve`, accessToken!, {
         method: 'POST',
       });
-      Alert.alert('✅ Success', 'Member has been approved and can now access your society');
+      Alert.alert('Success', 'Member has been approved and can now access your society');
       await loadMemberRequests(societyId);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to approve member');
@@ -345,7 +346,7 @@ export default function HeadPending() {
                 borderWidth: 1,
                 borderColor: COLORS.border,
               }}>
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>✨</Text>
+                <Ionicons name="sparkles-outline" size={36} color={COLORS.primary} style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4, color: COLORS.text }}>
                   All Caught Up!
                 </Text>
@@ -376,7 +377,7 @@ export default function HeadPending() {
                     </Text>
                     {request.user?.email && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                        <Text style={{ marginRight: 6, fontSize: 14 }}>✉️</Text>
+                        <Ionicons name="mail-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
                         <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>
                           {request.user.email}
                         </Text>
@@ -384,14 +385,14 @@ export default function HeadPending() {
                     )}
                     {request.user?.phone && (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                        <Text style={{ marginRight: 6, fontSize: 14 }}>📞</Text>
+                        <Ionicons name="call-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
                         <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>
                           {request.user.phone}
                         </Text>
                       </View>
                     )}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                      <Text style={{ marginRight: 6, fontSize: 14 }}>📅</Text>
+                      <Ionicons name="calendar-outline" size={16} color={COLORS.textSecondary} style={{ marginRight: 6 }} />
                       <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
                         {new Date(request.createdAt).toLocaleDateString()}
                       </Text>
@@ -411,9 +412,12 @@ export default function HeadPending() {
                     {approvingId === request.userSub ? (
                       <ActivityIndicator color="#FFF" size="small" />
                     ) : (
-                      <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 14 }}>
-                        ✓ Approve Member
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                        <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 14 }}>
+                          Approve Member
+                        </Text>
+                      </View>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -443,7 +447,7 @@ export default function HeadPending() {
                 }}
                 onPress={() => setCurrentScreen('societyDashboard')}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>📊</Text>
+                <Ionicons name="stats-chart-outline" size={40} color="#2E7D32" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
                   Manage Society
                 </Text>
@@ -466,7 +470,7 @@ export default function HeadPending() {
                 }}
                 onPress={() => setCurrentScreen('raiseComplaint')}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>📷</Text>
+                <Ionicons name="camera-outline" size={40} color="#C62828" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
                   Raise Issue
                 </Text>
@@ -489,7 +493,8 @@ export default function HeadPending() {
                 }}
                 onPress={() => setCurrentScreen('myComplaints')}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>📋</Text>
+                <Ionicons name="clipboard-outline" size={40} color="#1565C0" style={{ marginBottom: 8 }} />
+
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
                   My Issues
                 </Text>
@@ -512,7 +517,7 @@ export default function HeadPending() {
                 }}
                 onPress={() => setCurrentScreen('announcements')}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>📢</Text>
+                <Ionicons  name="megaphone-outline" size={40} color="#6A1B9A" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
                   Announcements
                 </Text>
@@ -540,7 +545,7 @@ export default function HeadPending() {
                   ]);
                 }}
               >
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>🚪</Text>
+                <MaterialIcons  name="logout" size={40} color="#EF6C00" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
                   Logout
                 </Text>

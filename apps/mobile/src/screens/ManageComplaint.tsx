@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../api';
 import { useLocalAuth } from '../auth/useLocalAuth';
 
@@ -77,7 +78,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Complaint</Text>
         </View>
@@ -93,7 +97,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Complaint</Text>
         </View>
@@ -108,7 +115,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Complaint</Text>
       </View>

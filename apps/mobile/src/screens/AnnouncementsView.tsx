@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 import { COLORS } from '../constants/theme';
@@ -34,13 +34,13 @@ type AnnouncementsViewProps = {
   isHead?: boolean;
 };
 
-const CATEGORY_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-  general: { icon: '📢', color: '#2196F3', label: 'General' },
-  maintenance: { icon: '🔧', color: '#FF9800', label: 'Maintenance' },
-  event: { icon: '🎉', color: '#9C27B0', label: 'Event' },
-  emergency: { icon: '🚨', color: '#F44336', label: 'Emergency' },
-  meeting: { icon: '👥', color: '#4CAF50', label: 'Meeting' },
-  notice: { icon: '📋', color: '#607D8B', label: 'Notice' },
+const CATEGORY_CONFIG: Record<string, { iconName: any; color: string; label: string }> = {
+  general: { iconName: 'megaphone-outline', color: '#2196F3', label: 'General' },
+  maintenance: { iconName: 'construct-outline', color: '#FF9800', label: 'Maintenance' },
+  event: { iconName: 'calendar-outline', color: '#9C27B0', label: 'Event' },
+  emergency: { iconName: 'warning-outline', color: '#F44336', label: 'Emergency' },
+  meeting: { iconName: 'people-outline', color: '#4CAF50', label: 'Meeting' },
+  notice: { iconName: 'document-text-outline', color: '#607D8B', label: 'Notice' },
 };
 
 const PRIORITY_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
@@ -141,14 +141,14 @@ export default function AnnouncementsView({
         {/* Header Row */}
         <View style={styles.cardHeader}>
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryIcon}>{category.icon}</Text>
+            <Ionicons name={category.iconName} size={14} color={category.color} style={{ marginRight: 6 }} />
             <Text style={[styles.categoryText, { color: category.color }]}>
               {category.label}
             </Text>
           </View>
           <View style={styles.headerRight}>
             {item.isPinned && (
-              <Text style={styles.pinIcon}>📌</Text>
+              <Ionicons name="pin" size={14} color={COLORS.textSecondary} style={styles.pinIcon} />
             )}
             {unread && (
               <View style={styles.unreadDot} />
@@ -197,13 +197,19 @@ export default function AnnouncementsView({
         <View style={styles.headerTop}>
           {onBack && (
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
-              <Text style={styles.backText}>← Back</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.backText}>Back</Text>
+              </View>
             </TouchableOpacity>
           )}
           <Text style={styles.headerTitle}>Announcements</Text>
           {isHead && onCreateNew && (
             <TouchableOpacity onPress={onCreateNew} style={styles.addButton}>
-              <Text style={styles.addButtonText}>+ New</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="add" size={16} color="#FFF" style={{ marginRight: 4 }} />
+                <Text style={styles.addButtonText}>New</Text>
+              </View>
             </TouchableOpacity>
           )}
         </View>
@@ -218,22 +224,30 @@ export default function AnnouncementsView({
           horizontal
           showsHorizontalScrollIndicator={false}
           data={[
-            { key: 'all', label: 'All' },
-            { key: 'general', label: '📢 General' },
-            { key: 'emergency', label: '🚨 Emergency' },
-            { key: 'meeting', label: '👥 Meeting' },
-            { key: 'maintenance', label: '🔧 Maintenance' },
-            { key: 'event', label: '🎉 Event' },
-            { key: 'notice', label: '📋 Notice' },
+            { key: 'all', label: 'All', iconName: 'apps-outline' },
+            { key: 'general', label: 'General', iconName: CATEGORY_CONFIG.general.iconName },
+            { key: 'emergency', label: 'Emergency', iconName: CATEGORY_CONFIG.emergency.iconName },
+            { key: 'meeting', label: 'Meeting', iconName: CATEGORY_CONFIG.meeting.iconName },
+            { key: 'maintenance', label: 'Maintenance', iconName: CATEGORY_CONFIG.maintenance.iconName },
+            { key: 'event', label: 'Event', iconName: CATEGORY_CONFIG.event.iconName },
+            { key: 'notice', label: 'Notice', iconName: CATEGORY_CONFIG.notice.iconName },
           ]}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.filterTab, filter === item.key && styles.filterTabActive]}
               onPress={() => setFilter(item.key)}
             >
-              <Text style={[styles.filterText, filter === item.key && styles.filterTextActive]}>
-                {item.label}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons
+                  name={item.iconName}
+                  size={14}
+                  color={filter === item.key ? '#FFF' : COLORS.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.filterText, filter === item.key && styles.filterTextActive]}>
+                  {item.label}
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
           keyExtractor={(item) => item.key}
@@ -244,7 +258,7 @@ export default function AnnouncementsView({
       {/* Announcements List */}
       {announcements.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📭</Text>
+          <Ionicons name="mail-outline" size={44} color={COLORS.textSecondary} style={{ marginBottom: 8 }} />
           <Text style={styles.emptyTitle}>No Announcements</Text>
           <Text style={styles.emptyMessage}>
             {filter !== 'all' 

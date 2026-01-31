@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -11,6 +10,8 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 import { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../constants/theme';
@@ -170,7 +171,10 @@ export default function MyComplaints({ onBack, onViewComplaint }: MyComplaintsPr
       <View style={styles.header}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
         )}
         <Text style={styles.title}>My Issues</Text>

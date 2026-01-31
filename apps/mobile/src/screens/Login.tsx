@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalAuth } from '../auth/useLocalAuth';
 
 const COLORS = {
