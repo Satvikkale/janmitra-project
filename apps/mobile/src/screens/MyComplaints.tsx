@@ -184,7 +184,7 @@ export default function MyComplaints({ onBack, onViewComplaint }: MyComplaintsPr
       {/* Complaints List */}
       {complaints.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Ionicons name="alert-circle-outline" size={44} color={COLORS.warning} style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>No Complaints Yet</Text>
           <Text style={styles.emptyMessage}>
             Start reporting issues by taking photos of problems in your society

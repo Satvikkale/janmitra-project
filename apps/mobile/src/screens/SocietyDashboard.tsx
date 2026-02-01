@@ -1,19 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  RefreshControl,
+  Dimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from '../api';
 import { useLocalAuth } from '../auth/useLocalAuth';
 
+const { width } = Dimensions.get('window');
+
 const COLORS = {
-  primary: '#1976D2',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  background: '#F5F6FA',
-  card: '#FFF',
-  text: '#222',
-  textLight: '#666',
-  border: '#E0E0E0',
+  primary: '#2563EB',
+  primaryDark: '#1D4ED8',
+  primaryLight: '#DBEAFE',
+  success: '#10B981',
+  successLight: '#D1FAE5',
+  warning: '#F59E0B',
+  warningLight: '#FEF3C7',
+  error: '#EF4444',
+  errorLight: '#FEE2E2',
+  background: '#F8FAFC',
+  card: '#FFFFFF',
+  cardAlt: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  border: '#E2E8F0',
+  divider: '#F1F5F9',
 };
 
 type SocietyDashboardProps = {
@@ -29,6 +48,15 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'resolved'>('all');
+
+  const formatLocation = (location: any) => {
+    if (!location) return '';
+    if (typeof location === 'string') return location;
+    if (typeof location === 'object' && location.lat != null && location.lng != null) {
+      return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+    }
+    return '';
+  };
 
   const apiStatusToUi = (apiStatus?: string) => {
     switch (apiStatus) {
@@ -63,17 +91,16 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
       const data = await apiFetch(`/v1/complaints?societyId=${societyId}${statusParam}`, accessToken!);
       const mapped = (data.complaints || data || []).map((c: any) => ({
         ...c,
-        status: apiStatusToUi(c.status)
+        status: apiStatusToUi(c.status),
+        locationText: formatLocation(c.location),
       }));
       setComplaints(mapped);
-      
-      // Calculate stats
-      const allComplaints = mapped;
+
       const newStats = {
-        total: allComplaints.length,
-        pending: allComplaints.filter((c: any) => c.status === 'pending').length,
-        inProgress: allComplaints.filter((c: any) => c.status === 'in-progress').length,
-        resolved: allComplaints.filter((c: any) => c.status === 'resolved').length,
+        total: mapped.length,
+        pending: mapped.filter((c: any) => c.status === 'pending').length,
+        inProgress: mapped.filter((c: any) => c.status === 'in-progress').length,
+        resolved: mapped.filter((c: any) => c.status === 'resolved').length,
       };
       setStats(newStats);
     } catch (error) {
@@ -89,142 +116,207 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
     fetchComplaints();
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'pending': return COLORS.warning;
-      case 'in-progress': return COLORS.primary;
-      case 'resolved': return COLORS.success;
-      case 'rejected': return COLORS.error;
-      default: return COLORS.textLight;
+      case 'pending':
+        return { label: 'Pending', bg: COLORS.warningLight, fg: COLORS.warning, icon: 'hourglass-outline' as const };
+      case 'in-progress':
+        return { label: 'In Progress', bg: COLORS.primaryLight, fg: COLORS.primary, icon: 'reload-outline' as const };
+      case 'resolved':
+        return { label: 'Resolved', bg: COLORS.successLight, fg: COLORS.success, icon: 'checkmark-done-outline' as const };
+      case 'closed':
+        return { label: 'Closed', bg: COLORS.cardAlt, fg: COLORS.textMuted, icon: 'lock-closed-outline' as const };
+      default:
+        return { label: status || 'Unknown', bg: COLORS.cardAlt, fg: COLORS.textMuted, icon: 'help-outline' as const };
     }
   };
 
-  const filteredComplaints = complaints;
+  const getPriorityConfig = (priority?: string) => {
+    switch (priority) {
+      case 'high':
+        return { label: 'High', bg: COLORS.errorLight, fg: COLORS.error };
+      case 'low':
+        return { label: 'Low', bg: COLORS.cardAlt, fg: COLORS.textSecondary };
+      default:
+        return { label: 'Medium', bg: COLORS.warningLight, fg: COLORS.warning };
+    }
+  };
+
+  const filteredComplaints = useMemo(() => complaints, [complaints]);
+
+  const FILTER_OPTIONS = [
+    { key: 'all' as const, label: 'All', icon: 'grid-outline' as const },
+    { key: 'pending' as const, label: 'Pending', icon: 'hourglass-outline' as const },
+    { key: 'in-progress' as const, label: 'Active', icon: 'reload-outline' as const },
+    { key: 'resolved' as const, label: 'Done', icon: 'checkmark-done-outline' as const },
+  ];
+
+  const STAT_CARDS = [
+    { key: 'total', value: stats.total, label: 'Total', icon: 'layers-outline' as const, color: COLORS.primary, bg: COLORS.primaryLight },
+    { key: 'pending', value: stats.pending, label: 'Pending', icon: 'hourglass-outline' as const, color: COLORS.warning, bg: COLORS.warningLight },
+    { key: 'inProgress', value: stats.inProgress, label: 'Active', icon: 'reload-outline' as const, color: COLORS.primary, bg: COLORS.primaryLight },
+    { key: 'resolved', value: stats.resolved, label: 'Done', icon: 'checkmark-done-outline' as const, color: COLORS.success, bg: COLORS.successLight },
+  ];
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="arrow-back" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-            <Text style={styles.backText}>Back</Text>
-          </View>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Society Dashboard</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Society Dashboard</Text>
+          <Text style={styles.headerSubtitle}>{stats.total} complaints</Text>
+        </View>
+        <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn} activeOpacity={0.7}>
+          <Ionicons name="refresh-outline" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Stats Cards */}
-      <ScrollView 
-        horizontal 
+      {/* Stats Row */}
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.statsContainer}
+        contentContainerStyle={styles.statsRow}
       >
-        <View style={[styles.statCard, { borderLeftColor: COLORS.primary }]}>
-          <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: COLORS.warning }]}>
-          <Text style={styles.statNumber}>{stats.pending}</Text>
-          <Text style={styles.statLabel}>Pending</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: COLORS.primary }]}>
-          <Text style={styles.statNumber}>{stats.inProgress}</Text>
-          <Text style={styles.statLabel}>In Progress</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: COLORS.success }]}>
-          <Text style={styles.statNumber}>{stats.resolved}</Text>
-          <Text style={styles.statLabel}>Resolved</Text>
-        </View>
+        {STAT_CARDS.map((stat) => (
+          <View key={stat.key} style={styles.statCard}>
+            <View style={[styles.statIconWrap, { backgroundColor: stat.bg }]}>
+              <Ionicons name={stat.icon} size={18} color={stat.color} />
+            </View>
+            <Text style={styles.statValue}>{stat.value}</Text>
+            <Text style={styles.statLabel}>{stat.label}</Text>
+          </View>
+        ))}
       </ScrollView>
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        <TouchableOpacity 
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-          onPress={() => setFilter('all')}
+      {/* Filter Chips */}
+      <View style={styles.filterSection}>
+        <Text style={styles.filterTitle}>Filter</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChips}
         >
-          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterTab, filter === 'pending' && styles.filterTabActive]}
-          onPress={() => setFilter('pending')}
-        >
-          <Text style={[styles.filterText, filter === 'pending' && styles.filterTextActive]}>Pending</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterTab, filter === 'in-progress' && styles.filterTabActive]}
-          onPress={() => setFilter('in-progress')}
-        >
-          <Text style={[styles.filterText, filter === 'in-progress' && styles.filterTextActive]}>In Progress</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterTab, filter === 'resolved' && styles.filterTabActive]}
-          onPress={() => setFilter('resolved')}
-        >
-          <Text style={[styles.filterText, filter === 'resolved' && styles.filterTextActive]}>Resolved</Text>
-        </TouchableOpacity>
+          {FILTER_OPTIONS.map((opt) => {
+            const isActive = filter === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                onPress={() => setFilter(opt.key)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={14}
+                  color={isActive ? '#FFF' : COLORS.textSecondary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* Complaints List */}
+      {/* Content */}
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loaderText}>Loading...</Text>
         </View>
       ) : (
-        <ScrollView 
-          style={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+          showsVerticalScrollIndicator={false}
         >
           {filteredComplaints.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No complaints found</Text>
+            <View style={styles.empty}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="file-tray-outline" size={40} color={COLORS.textMuted} />
+              </View>
+              <Text style={styles.emptyTitle}>No complaints</Text>
+              <Text style={styles.emptySubtitle}>Try a different filter or pull to refresh</Text>
             </View>
           ) : (
-            filteredComplaints.map((complaint) => (
-              <TouchableOpacity 
-                key={complaint._id} 
-                style={styles.complaintCard}
-                onPress={() => onViewComplaint(complaint._id)}
-              >
-                <View style={styles.complaintHeader}>
-                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(complaint.status) }]} />
-                  <Text style={styles.category}>{complaint.category || 'Uncategorized'}</Text>
-                  <Text style={styles.date}>
-                    {new Date(complaint.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-                
-                <Text style={styles.complaintDescription} numberOfLines={2}>
-                  {complaint.aiClassification?.description || complaint.description || 'No description'}
-                </Text>
-                
-                {complaint.location && (
-                  <View style={styles.locationRow}>
-                    <Ionicons name="location-outline" size={16} color={COLORS.textLight} style={{ marginRight: 6 }} />
-                    <Text style={styles.location}>{complaint.location}</Text>
-                  </View>
-                )}
-
-                <View style={styles.complaintFooter}>
-                  <Text style={styles.reporter}>
-                    By: {complaint.reporterId?.name || complaint.reporterId?.email || 'Unknown'}
-                  </Text>
-                  {complaint.aiClassification?.severity && (
-                    <View style={[styles.severityBadge, { 
-                      backgroundColor: complaint.aiClassification.severity === 'high' ? COLORS.error 
-                        : complaint.aiClassification.severity === 'medium' ? COLORS.warning 
-                        : COLORS.success 
-                    }]}>
-                      <Text style={styles.severityText}>{complaint.aiClassification.severity}</Text>
+            filteredComplaints.map((complaint) => {
+              const statusCfg = getStatusConfig(complaint.status);
+              const priorityCfg = getPriorityConfig(complaint.priority);
+              return (
+                <TouchableOpacity
+                  key={complaint._id}
+                  style={styles.card}
+                  onPress={() => onViewComplaint(complaint._id)}
+                  activeOpacity={0.7}
+                >
+                  {/* Card Header */}
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.statusChip, { backgroundColor: statusCfg.bg }]}>
+                      <Ionicons name={statusCfg.icon} size={12} color={statusCfg.fg} style={{ marginRight: 4 }} />
+                      <Text style={[styles.statusChipText, { color: statusCfg.fg }]}>{statusCfg.label}</Text>
                     </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
+                    {complaint.headFlagged && (
+                      <View style={styles.flagChip}>
+                        <Ionicons name="flag" size={12} color={COLORS.warning} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }} />
+                    <Text style={styles.cardDate}>{new Date(complaint.createdAt).toLocaleDateString()}</Text>
+                  </View>
+
+                  {/* Category & Description */}
+                  <Text style={styles.cardCategory} numberOfLines={1}>
+                    {complaint.category || 'Uncategorized'}
+                  </Text>
+                  <Text style={styles.cardDesc} numberOfLines={2}>
+                    {complaint.description || 'No description provided'}
+                  </Text>
+
+                  {/* Pinned Note */}
+                  {complaint.headPinnedNote?.message ? (
+                    <View style={styles.pinnedBox}>
+                      <Ionicons name="chatbox-ellipses-outline" size={14} color={COLORS.primary} style={{ marginRight: 8 }} />
+                      <Text style={styles.pinnedText} numberOfLines={2}>
+                        {complaint.headPinnedNote.message}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Card Footer */}
+                  <View style={styles.cardFooter}>
+                    {complaint.locationText ? (
+                      <View style={styles.metaRow}>
+                        <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
+                        <Text style={styles.metaText} numberOfLines={1}>{complaint.locationText}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.metaRow}>
+                        <Ionicons name="person-outline" size={14} color={COLORS.textMuted} />
+                        <Text style={styles.metaText} numberOfLines={1}>
+                          {complaint.reporterId?.name || complaint.reporterId?.email || 'Unknown'}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={[styles.priorityChip, { backgroundColor: priorityCfg.bg }]}>
+                      <Text style={[styles.priorityText, { color: priorityCfg.fg }]}>{priorityCfg.label}</Text>
+                    </View>
+                  </View>
+
+                  {/* Chevron */}
+                  <View style={styles.chevronWrap}>
+                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
+          <View style={{ height: 24 }} />
         </ScrollView>
       )}
     </View>
@@ -236,159 +328,276 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
+  /* Header */
   header: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     backgroundColor: COLORS.card,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    flexDirection: 'row',
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.cardAlt,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  backButton: {
-    marginRight: 12,
-  },
-  backText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '600',
+  headerCenter: {
+    flex: 1,
+    marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '700',
     color: COLORS.text,
   },
-  statsContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
+  headerSubtitle: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.cardAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Stats */
+  statsRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
   },
   statCard: {
+    width: (width - 32 - 30) / 4,
+    minWidth: 72,
     backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 4,
-    minWidth: 100,
-    borderLeftWidth: 4,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2,
   },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  statIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.text,
   },
   statLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+
+  /* Filters */
+  filterSection: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 10,
+  },
+  filterTitle: {
     fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 4,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
+    fontWeight: '600',
+    color: COLORS.textMuted,
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 10,
+  filterChips: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  filterTabActive: {
-    borderBottomColor: COLORS.primary,
-  },
-  filterText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    fontWeight: '500',
-  },
-  filterTextActive: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.textLight,
-  },
-  complaintCard: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  filterChipTextActive: {
+    color: '#FFF',
+  },
+
+  /* Loader */
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
+
+  /* List */
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+
+  /* Empty */
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.cardAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
+
+  /* Card */
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
+    position: 'relative',
   },
-  complaintHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+    gap: 8,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
-  category: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  date: {
+  flagChip: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: COLORS.warningLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardDate: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.textMuted,
   },
-  complaintDescription: {
-    fontSize: 14,
+  cardCategory: {
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 8,
-    lineHeight: 20,
+    marginBottom: 4,
   },
-  locationRow: {
+  cardDesc: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  pinnedBox: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
   },
-  location: {
-    fontSize: 12,
-    color: COLORS.textLight,
-  },
-  complaintFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  reporter: {
-    fontSize: 12,
-    color: COLORS.textLight,
+  pinnedText: {
     flex: 1,
+    fontSize: 12,
+    color: COLORS.primaryDark,
+    lineHeight: 17,
+    fontWeight: '500',
   },
-  severityBadge: {
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  metaText: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginLeft: 6,
+  },
+  priorityChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
-  severityText: {
-    color: '#FFF',
+  priorityText: {
     fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  chevronWrap: {
+    position: 'absolute',
+    right: 14,
+    top: '50%',
+    marginTop: -9,
   },
 });

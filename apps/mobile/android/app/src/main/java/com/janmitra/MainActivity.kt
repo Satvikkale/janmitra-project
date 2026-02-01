@@ -1,4 +1,4 @@
-package com.janmitra.mobile
+package com.janmitra
 
 import android.os.Build
 import android.os.Bundle

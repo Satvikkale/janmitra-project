@@ -27,6 +27,7 @@
       "icon": "./assets/Assets.xcassets/AppIcon.appiconset/1024.png"
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

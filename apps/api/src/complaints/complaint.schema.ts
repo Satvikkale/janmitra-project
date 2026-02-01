@@ -19,6 +19,12 @@ export class Complaint {
   @Prop() severityScore?: number;
   @Prop() assignedTo?: string;
   @Prop({ type: { level: String, dueAt: Date } }) sla?: { level: string; dueAt: Date };
+
+  // Society head advisory signal (does not affect routing or lifecycle status)
+  @Prop({ default: false, index: true }) headFlagged?: boolean;
+  @Prop() headFlagReason?: string;
+  @Prop({ type: { message: String, actorId: String, createdAt: Date }, _id: false })
+  headPinnedNote?: { message: string; actorId: string; createdAt: Date };
 }
 export const ComplaintSchema = SchemaFactory.createForClass(Complaint);
 ComplaintSchema.index({ societyId: 1, status: 1, createdAt: -1 });

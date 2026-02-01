@@ -27,8 +27,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [status, setStatus] = useState('');
-  const [notes, setNotes] = useState('');
+
+  const [flagged, setFlagged] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [pinnedNote, setPinnedNote] = useState('');
 
   const apiStatusToUi = (apiStatus?: string) => {
     switch (apiStatus) {
@@ -38,17 +40,6 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
         return 'in-progress';
       default:
         return apiStatus || '';
-    }
-  };
-
-  const uiStatusToApi = (uiStatus?: string) => {
-    switch (uiStatus) {
-      case 'pending':
-        return 'open';
-      case 'in-progress':
-        return 'in_progress';
-      default:
-        return uiStatus || '';
     }
   };
 
@@ -63,8 +54,10 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
 
       data.status = apiStatusToUi(data.status);
       setComplaint(data);
-      setStatus(data.status);
-      setNotes(data.note ?? data.notes ?? '');
+
+      setFlagged(Boolean(data.headFlagged));
+      setFlagReason(data.headFlagReason || '');
+      setPinnedNote(data.headPinnedNote?.message || '');
     } catch (error) {
       console.error('Failed to fetch complaint:', error);
       Alert.alert('Error', 'Failed to load complaint details');
@@ -73,20 +66,23 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
     }
   };
 
-  const handleUpdate = async () => {
+  const handleSaveHeadReview = async () => {
     try {
       setUpdating(true);
-      const backendStatus = uiStatusToApi(status);
-      await apiFetch(`/v1/complaints/${complaintId}/status`, accessToken!, {
+      await apiFetch(`/v1/complaints/${complaintId}/head-review`, accessToken!, {
         method: 'PATCH',
-        body: JSON.stringify({ status: backendStatus, note: notes || undefined }),
+        body: JSON.stringify({
+          flagged,
+          reason: flagReason || undefined,
+          pinnedNote: pinnedNote || undefined,
+        }),
       });
-      Alert.alert('Success', 'Complaint updated successfully');
+      Alert.alert('Success', 'Saved head review');
       onUpdated();
       onBack();
     } catch (error) {
-      console.error('Failed to update complaint:', error);
-      Alert.alert('Error', 'Failed to update complaint');
+      console.error('Failed to save head review:', error);
+      Alert.alert('Error', 'Failed to save head review');
     } finally {
       setUpdating(false);
     }
@@ -161,6 +157,11 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
           </View>
 
           <View style={styles.infoRow}>
+            <Text style={styles.label}>Current Status:</Text>
+            <Text style={styles.value}>{complaint.status || 'Unknown'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
             <Text style={styles.label}>Description:</Text>
           </View>
           <Text style={styles.description}>
@@ -169,7 +170,13 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>Location:</Text>
-            <Text style={styles.value}>{complaint.location || 'Not specified'}</Text>
+            <Text style={styles.value}>
+              {typeof complaint.location === 'string'
+                ? complaint.location
+                : complaint.location?.lat && complaint.location?.lng
+                  ? `${complaint.location.lat}, ${complaint.location.lng}`
+                  : 'Not specified'}
+            </Text>
           </View>
 
           <View style={styles.infoRow}>
@@ -193,55 +200,48 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
           </View>
         </View>
 
-        {/* Update Form */}
+        {/* Head Review (advisory only) */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Update Status</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+            <Text style={styles.sectionTitle}>Head Review</Text>
+          </View>
 
-          <Text style={styles.inputLabel}>Status</Text>
-          <View style={styles.statusButtons}>
-            <TouchableOpacity 
-              style={[styles.statusButton, status === 'pending' && styles.statusButtonActive]}
-              onPress={() => setStatus('pending')}
-            >
-              <Text style={[styles.statusButtonText, status === 'pending' && styles.statusButtonTextActive]}>
-                Pending
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.statusButton, status === 'in-progress' && styles.statusButtonActive]}
-              onPress={() => setStatus('in-progress')}
-            >
-              <Text style={[styles.statusButtonText, status === 'in-progress' && styles.statusButtonTextActive]}>
-                In Progress
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.statusButton, status === 'resolved' && styles.statusButtonActive]}
-              onPress={() => setStatus('resolved')}
-            >
-              <Text style={[styles.statusButtonText, status === 'resolved' && styles.statusButtonTextActive]}>
-                Resolved
-              </Text>
-            </TouchableOpacity>
+          <Text style={styles.helperText}>
+            Auto-routing stays active. Use this to flag anything suspicious and pin a note for the org/NGO.
+          </Text>
 
-            <TouchableOpacity 
-              style={[styles.statusButton, status === 'rejected' && styles.statusButtonActive]}
-              onPress={() => setStatus('rejected')}
+          <Text style={styles.inputLabel}>Suspicious?</Text>
+          <View style={styles.flagButtons}>
+            <TouchableOpacity
+              style={[styles.flagButton, !flagged && styles.flagButtonActive]}
+              onPress={() => setFlagged(false)}
             >
-              <Text style={[styles.statusButtonText, status === 'rejected' && styles.statusButtonTextActive]}>
-                Rejected
-              </Text>
+              <Text style={[styles.flagButtonText, !flagged && styles.flagButtonTextActive]}>No</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.flagButton, flagged && styles.flagButtonActive, flagged && { borderColor: COLORS.warning }]}
+              onPress={() => setFlagged(true)}
+            >
+              <Text style={[styles.flagButtonText, flagged && styles.flagButtonTextActive, flagged && { color: COLORS.warning }]}>Flag</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.inputLabel}>Notes / Resolution Details</Text>
+          <Text style={styles.inputLabel}>Flag Reason (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={flagReason}
+            onChangeText={setFlagReason}
+            placeholder="e.g., Looks like duplicate / personal dispute / unclear evidence"
+            placeholderTextColor={COLORS.textLight}
+          />
+
+          <Text style={styles.inputLabel}>Pinned Note (shown to org/NGO)</Text>
           <TextInput
             style={styles.textArea}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add notes about the status update..."
+            value={pinnedNote}
+            onChangeText={setPinnedNote}
+            placeholder="Add a pinned note for the org/NGO handling this complaint..."
             placeholderTextColor={COLORS.textLight}
             multiline
             numberOfLines={4}
@@ -250,13 +250,16 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
 
           <TouchableOpacity 
             style={[styles.updateButton, updating && styles.updateButtonDisabled]}
-            onPress={handleUpdate}
+            onPress={handleSaveHeadReview}
             disabled={updating}
           >
             {updating ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.updateButtonText}>Update Complaint</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="save-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.updateButtonText}>Save</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -325,6 +328,18 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 16,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  helperText: {
+    color: COLORS.textLight,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -4,
+    marginBottom: 8,
+  },
   photo: {
     width: '100%',
     height: 200,
@@ -359,32 +374,39 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 12,
   },
-  statusButtons: {
+  flagButtons: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  statusButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 8,
+    gap: 10,
     marginBottom: 8,
   },
-  statusButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  flagButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statusButtonText: {
+  flagButtonActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#E3F2FD',
+  },
+  flagButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  flagButtonTextActive: {
+    color: COLORS.primary,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 14,
     color: COLORS.text,
-    fontWeight: '500',
-  },
-  statusButtonTextActive: {
-    color: '#FFF',
-    fontWeight: '600',
   },
   textArea: {
     borderWidth: 1,

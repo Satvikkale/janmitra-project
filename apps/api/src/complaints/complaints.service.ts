@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Complaint, ComplaintEvent } from './complaint.schema';
-import { AddCommentDto, CreateComplaintDto, ListQueryDto, UpdateStatusDto } from './dto';
+import { AddCommentDto, CreateComplaintDto, HeadReviewDto, ListQueryDto, UpdateStatusDto } from './dto';
 import { RoutingService } from '../routing/routing.service';
 import { EventsGateway } from '../realtime/events.gateway';
 
@@ -90,5 +90,51 @@ export class ComplaintsService {
     await this.eventModel.create({ complaintId: String(doc._id), type: 'comment', actorId: dto.actorId ?? 'u-dev-1', payload: { message: dto.message, visibility: dto.visibility } });
     this.events.emitComplaintUpdated(doc as any);
     return { ok: true };
+  }
+
+  async headReview(
+    id: string,
+    dto: HeadReviewDto,
+    ctx: { actorId: string; roles: string[]; headSocietyIds: string[] },
+  ) {
+    const isAdmin = ctx.roles?.includes('platform_admin');
+    const doc = await this.complaintModel.findById(id);
+    if (!doc) return null;
+
+    const isHeadOfThisSociety = (ctx.headSocietyIds || []).includes(String(doc.societyId));
+    if (!isAdmin && !isHeadOfThisSociety) throw new Error('Forbidden');
+
+    const update: any = { updatedAt: new Date() };
+    if (typeof dto.flagged === 'boolean') {
+      update.headFlagged = dto.flagged;
+      update.headFlagReason = dto.flagged ? (dto.reason || doc.headFlagReason || undefined) : undefined;
+      if (!dto.flagged) update.headPinnedNote = doc.headPinnedNote; // keep note unless explicitly changed
+    }
+    if (dto.reason !== undefined) {
+      update.headFlagReason = dto.reason || undefined;
+    }
+    if (dto.pinnedNote !== undefined) {
+      const note = (dto.pinnedNote || '').trim();
+      update.headPinnedNote = note
+        ? { message: note, actorId: ctx.actorId, createdAt: new Date() }
+        : undefined;
+    }
+
+    const updated = await this.complaintModel.findByIdAndUpdate(id, update, { new: true });
+    if (!updated) return null;
+
+    await this.eventModel.create({
+      complaintId: String(updated._id),
+      type: 'note',
+      actorId: ctx.actorId,
+      payload: {
+        kind: 'head_review',
+        flagged: updated.headFlagged || false,
+        reason: updated.headFlagReason || null,
+        pinnedNote: updated.headPinnedNote?.message || null,
+      },
+    });
+    this.events.emitComplaintUpdated(updated as any);
+    return updated;
   }
 }

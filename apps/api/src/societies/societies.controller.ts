@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformUserGuard } from '../auth/platform-user.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import { OptionalPlatformUserGuard } from '../auth/optional-platform-user.guard';
 import { Society } from './society.schema';
 import { SocietyMembership } from './membership.schema';
 import { Announcement } from './announcement.schema';
@@ -20,21 +22,29 @@ export class SocietiesController {
 
   /**
    * List societies, optionally filtered by name
-   * Public endpoint - shows only approved societies unless admin with includePending=true
+   * Public endpoint - shows only approved societies
+   * Authenticated admin with includePending=true can see pending societies
    */
   @Get()
+  @UseGuards(OptionalJwtAuthGuard, OptionalPlatformUserGuard)
   async list(@Req() req: any, @Query('q') q?: string, @Query('includePending') includePending?: string) {
     try {
       const filter: any = {};
       if (q) filter.name = { $regex: q, $options: 'i' };
-      if (includePending === 'true' && req.platform?.roles?.includes('platform_admin')) {
-        // admin can see all
+      
+      // Check if user is platform_admin for includePending
+      const isAdmin = req.platform?.roles?.includes('platform_admin');
+      
+      if (includePending === 'true' && isAdmin) {
+        // Admin can see all societies including pending
+        this.logger.log(`Admin ${req.user?.sub} fetching all societies including pending`);
       } else {
         // Public or non-admin: show only approved societies
         filter.$or = [{ status: 'approved' }, { status: { $exists: false } }];
       }
+      
       const result = await this.soc.find(filter).sort({ createdAt: -1 }).limit(100).lean();
-      this.logger.log(`Societies listed: ${result.length} items (public: ${!req.platform})`);
+      this.logger.log(`Societies listed: ${result.length} items (authenticated: ${!!req.user}, admin: ${isAdmin})`);
       return result;
     } catch (error) {
       this.logger.error('Error listing societies', error.stack);
@@ -81,8 +91,8 @@ export class SocietiesController {
 
   /**
    * Create a new society
-   UseGuards(JwtAuthGuard, PlatformUserGuard)
-  @*/
+   */
+  @UseGuards(JwtAuthGuard, PlatformUserGuard)
   @Post()
   async create(@Req() req: any, @Body() body: { name: string }) {
     try {

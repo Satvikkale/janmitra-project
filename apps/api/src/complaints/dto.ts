@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested, IsNumber } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested, IsNumber, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class LocationDto { @IsNumber() lat!: number; @IsNumber() lng!: number; }
@@ -33,4 +33,11 @@ export class AddCommentDto {
   @IsString() message!: string;
   @IsIn(['public','internal']) visibility!: 'public'|'internal';
   @IsString() @IsOptional() actorId?: string;
+}
+
+// Society head advisory review (Option A): flag + pinned note
+export class HeadReviewDto {
+  @IsBoolean() @IsOptional() flagged?: boolean;
+  @IsString() @IsOptional() @MaxLength(240) reason?: string;
+  @IsString() @IsOptional() @MaxLength(1000) pinnedNote?: string;
 }
