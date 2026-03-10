@@ -54,10 +54,15 @@ export default function Navbar() {
 
   const getDashboardLink = () => {
     switch (userType) {
+      case 'admin':
       case 'platform_admin':
-        return { href: '/admin', label: 'Admin Panel' };
+        return { href: '/admin-dashboard', label: 'Dashboard' };
+      case 'ngo':
       case 'org_admin':
-        return { href: '/org/queue', label: 'Dashboard' };
+        return { href: '/ngo-dashboard', label: 'Dashboard' };
+      case 'ngo-user':
+      case 'org_member':
+        return { href: '/ngo-users', label: 'Dashboard' };
       default:
         return null;
     }

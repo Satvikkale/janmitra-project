@@ -178,6 +178,7 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.statsScroll}
         contentContainerStyle={styles.statsRow}
       >
         {STAT_CARDS.map((stat) => (
@@ -299,7 +300,7 @@ export default function SocietyDashboard({ societyId, onViewComplaint, onBack }:
                       <View style={styles.metaRow}>
                         <Ionicons name="person-outline" size={14} color={COLORS.textMuted} />
                         <Text style={styles.metaText} numberOfLines={1}>
-                          {complaint.reporterId?.name || complaint.reporterId?.email || 'Unknown'}
+                          {complaint.reporter?.name || complaint.reporter?.email || complaint.reporter?.phone || 'Unknown User'}
                         </Text>
                       </View>
                     )}
@@ -372,19 +373,27 @@ const styles = StyleSheet.create({
   },
 
   /* Stats */
+  statsScroll: {
+    height: 100,
+    flexGrow: 0,
+  },
   statsRow: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 10,
+    paddingBottom: 2,
     gap: 10,
+    alignItems: 'center',
   },
   statCard: {
     width: (width - 32 - 30) / 4,
     minWidth: 72,
+    height: 84,
     backgroundColor: COLORS.card,
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -392,35 +401,35 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statIconWrap: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: COLORS.text,
   },
   statLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
-    marginTop: 2,
+    marginTop: 0,
   },
 
   /* Filters */
   filterSection: {
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 10,
+    paddingTop: 0,
+    paddingBottom: 8,
   },
   filterTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.textMuted,
-    marginBottom: 8,
+    marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

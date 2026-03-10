@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Org } from './orgs.schema';
@@ -29,7 +29,7 @@ export class OrgsService {
   async findById(id: string) {
     try {
       if (!id) throw new Error('Org ID is required');
-      const org = await this.model.findById(id).lean();
+      const org = await this.model.findById(id);
       if (!org) throw new Error('Org not found');
       return org;
     } catch (error) {
@@ -77,5 +77,66 @@ export class OrgsService {
       this.logger.error('Error listing orgs', error.stack);
       throw error;
     }
+  }
+
+  // --- NGO management methods ---
+
+  async createNgo(ngoData: any) {
+    const existingNgo = await this.model.findOne({
+      $or: [
+        { name: ngoData.name, type: 'NGO' },
+        { contactEmail: ngoData.contactEmail },
+        { contactPhone: ngoData.contactPhone },
+      ],
+    });
+
+    if (existingNgo) {
+      throw new BadRequestException('NGO already exists with this name, email, or phone');
+    }
+
+    return this.model.create(ngoData);
+  }
+
+  async findNgoByIdentifier(identifier: string) {
+    return this.model.findOne({
+      type: 'NGO',
+      $or: [{ contactEmail: identifier }, { contactPhone: identifier }],
+    });
+  }
+
+  async getAllNgos() {
+    return this.model.find({ type: 'NGO' }).sort({ createdAt: -1 });
+  }
+
+  async getPendingNgos() {
+    return this.model.find({ type: 'NGO', isVerified: false }).sort({ createdAt: -1 });
+  }
+
+  async getVerifiedNgos() {
+    return this.model.find({ type: 'NGO', isVerified: true }).sort({ createdAt: -1 });
+  }
+
+  async verifyNgo(ngoId: string) {
+    const ngo = await this.model.findById(ngoId);
+    if (!ngo || ngo.type !== 'NGO') {
+      throw new NotFoundException('NGO not found');
+    }
+
+    await this.model.findByIdAndUpdate(ngoId, { isVerified: true });
+    return { message: 'NGO verified successfully' };
+  }
+
+  async rejectNgo(ngoId: string) {
+    const ngo = await this.model.findById(ngoId);
+    if (!ngo || ngo.type !== 'NGO') {
+      throw new NotFoundException('NGO not found');
+    }
+
+    await this.model.findByIdAndDelete(ngoId);
+    return { message: 'NGO application rejected and removed' };
+  }
+
+  async updateNgo(id: string, updateData: any) {
+    return this.model.findByIdAndUpdate(id, updateData, { new: true });
   }
 }

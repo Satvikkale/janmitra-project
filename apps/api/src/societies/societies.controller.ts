@@ -134,7 +134,7 @@ export class SocietiesController {
     }
   }
 
-  /** List memberships for a society (head only) */
+  /** List memberships for a society (head or platform admin) */
   @UseGuards(JwtAuthGuard, PlatformUserGuard)
   @Get(':id/memberships')
   async listMembers(@Req() req: any, @Param('id') id: string, @Query('status') status?: string) {
@@ -145,7 +145,8 @@ export class SocietiesController {
       if (!id) throw new Error('Society ID is required');
       
       const soc = await this.soc.findById(id).lean();
-      if (soc?.headUserSub !== req.user.sub) {
+      const isAdmin = req.platform?.roles?.includes('platform_admin');
+      if (!isAdmin && soc?.headUserSub !== req.user.sub) {
         this.logger.warn(`User ${req.user.sub} is not head of society ${id}`);
         return [];
       }

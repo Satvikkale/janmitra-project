@@ -10,6 +10,8 @@ import { SocietyMembership, SocietyMembershipSchema } from 'src/societies/member
 import { Society, SocietySchema } from 'src/societies/society.schema';
 import { AIModule } from 'src/ai/ai.module';
 import { UploadsModule } from 'src/uploads/uploads.module';
+import { BlockchainModule } from '../blockchain/blockchain.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { UploadsModule } from 'src/uploads/uploads.module';
     RoutingModule,
     AIModule,
     UploadsModule,
+    BlockchainModule,
+    NotificationsModule,
   ],
   controllers: [ComplaintsController],
   providers: [ComplaintsService],

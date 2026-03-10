@@ -1,4 +1,4 @@
-package com.janmitra
+package com.janmitra.mobile
 
 import android.app.Application
 import android.content.res.Configuration

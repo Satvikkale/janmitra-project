@@ -72,8 +72,15 @@ export default function LandingPage() {
 
   const getDashboardLink = () => {
     switch (userType) {
-      case 'platform_admin': return '/admin';
-      case 'org_admin': return '/org/queue';
+      case 'admin':
+      case 'platform_admin':
+        return '/admin-dashboard';
+      case 'ngo':
+      case 'org_admin':
+        return '/ngo-dashboard';
+      case 'ngo-user':
+      case 'org_member':
+        return '/ngo-users';
       default: return '/';
     }
   };

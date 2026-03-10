@@ -5,6 +5,7 @@ import { Complaint, ComplaintEvent } from './complaint.schema';
 import { AddCommentDto, CreateComplaintDto, HeadReviewDto, ListQueryDto, UpdateStatusDto } from './dto';
 import { RoutingService } from '../routing/routing.service';
 import { EventsGateway } from '../realtime/events.gateway';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ComplaintsService {
@@ -14,7 +15,35 @@ export class ComplaintsService {
     @InjectModel(ComplaintEvent.name) private eventModel: Model<ComplaintEvent>,
     private routing: RoutingService,
     private events: EventsGateway,
+    private readonly users: UsersService,
   ) {}
+
+  private async attachReporter<T extends { reporterId?: string }>(rows: T[]) {
+    const reporterIds = Array.from(
+      new Set((rows || []).map((r) => r?.reporterId).filter((v): v is string => Boolean(v))),
+    );
+    if (reporterIds.length === 0) return rows;
+
+    // In this project, JWT `sub` is the DB user id (see jwt.strategy.ts), so reporterId is a Mongo ObjectId string.
+    const users = await Promise.all(
+      reporterIds.map(async (id) => {
+        try {
+          return await this.users.getById(id);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const byId = new Map(users.filter(Boolean).map((u: any) => [String(u._id), u]));
+
+    return (rows || []).map((r: any) => {
+      const u = r?.reporterId ? byId.get(String(r.reporterId)) : null;
+      return {
+        ...r,
+        reporter: u ? { name: u.name, email: u.email ?? null, phone: u.phone ?? null } : null,
+      };
+    });
+  }
 
   /**
    * Create a new complaint
@@ -64,15 +93,21 @@ export class ComplaintsService {
       if (q.status) filter.status = q.status;
       if (q.reporterId) filter.reporterId = q.reporterId;
       const result = await this.complaintModel.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+      const enriched = await this.attachReporter(result as any);
       this.logger.log(`Complaints listed: ${result.length} items with filter: ${JSON.stringify(filter)}`);
-      return result;
+      return enriched;
     } catch (error) {
       this.logger.error('Error listing complaints', error.stack);
       throw error;
     }
   }
 
-  async get(id: string) { return this.complaintModel.findById(id).lean(); }
+  async get(id: string) {
+    const doc = await this.complaintModel.findById(id).lean();
+    if (!doc) return doc;
+    const enriched = await this.attachReporter([doc as any]);
+    return enriched[0];
+  }
 
   async eventsFor(id: string) { return this.eventModel.find({ complaintId: id }).sort({ createdAt: 1 }).lean(); }
 

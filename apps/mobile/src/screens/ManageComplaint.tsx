@@ -182,7 +182,7 @@ export default function ManageComplaint({ complaintId, onBack, onUpdated }: Mana
           <View style={styles.infoRow}>
             <Text style={styles.label}>Reported By:</Text>
             <Text style={styles.value}>
-              {complaint.reporterId?.name || complaint.reporterId?.email || 'Unknown'}
+              {complaint.reporter?.name || complaint.reporter?.email || complaint.reporter?.phone || 'Unknown User'}
             </Text>
           </View>
 

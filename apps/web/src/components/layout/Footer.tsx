@@ -60,7 +60,7 @@ export default function Footer() {
                 <div className="p-2 bg-slate-800 rounded-lg">
                   <MapPin className="w-4 h-4" />
                 </div>
-                <span>Noida, Uttar Pradesh, India</span>
+                <span>Nagpur, Maharashtra, India</span>
               </div>
             </div>
           </div>

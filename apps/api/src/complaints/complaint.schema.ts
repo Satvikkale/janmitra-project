@@ -25,6 +25,10 @@ export class Complaint {
   @Prop() headFlagReason?: string;
   @Prop({ type: { message: String, actorId: String, createdAt: Date }, _id: false })
   headPinnedNote?: { message: string; actorId: string; createdAt: Date };
+
+  // Blockchain fields
+  @Prop() blockchainTxHash?: string;
+  @Prop() blockchainHash?: string;
 }
 export const ComplaintSchema = SchemaFactory.createForClass(Complaint);
 ComplaintSchema.index({ societyId: 1, status: 1, createdAt: -1 });
