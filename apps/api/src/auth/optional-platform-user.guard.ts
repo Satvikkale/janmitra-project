@@ -29,6 +29,20 @@ export class OptionalPlatformUserGuard implements CanActivate {
     }
 
     try {
+      const jwtRoles: string[] = Array.isArray(req.user?.roles) ? req.user.roles : [];
+      const isOrgSession = jwtRoles.includes('ngo') || jwtRoles.includes('org_admin');
+      const isNgoUserSession = jwtRoles.includes('ngo-user') || jwtRoles.includes('org_staff');
+
+      if (isOrgSession) {
+        req.platform = { user: { id: sub }, roles: jwtRoles, societyIds: [], headSocietyIds: [], orgIds: [sub] };
+        return true;
+      }
+
+      if (isNgoUserSession) {
+        req.platform = { user: { id: sub }, roles: jwtRoles, societyIds: [], headSocietyIds: [], orgIds: [] };
+        return true;
+      }
+
       const u = await this.users.getById(sub);
       const approved = await this.mem.find({ userSub: sub, status: 'approved' }).lean();
       const societyIds = approved.map(m => m.societyId);

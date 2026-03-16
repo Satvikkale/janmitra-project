@@ -17,6 +17,7 @@ export class ListQueryDto {
   @IsString() @IsOptional() id?: string;
   @IsString() @IsOptional() societyId?: string;
   @IsString() @IsOptional() orgId?: string;
+  @IsString() @IsOptional() assignedTo?: string;
   @IsString() @IsOptional() reporterId?: string;
   @IsIn(['open','assigned','in_progress','resolved','closed']) @IsOptional()
   status?: 'open'|'assigned'|'in_progress'|'resolved'|'closed';
@@ -29,10 +30,23 @@ export class UpdateStatusDto {
   @IsString() @IsOptional() actorId?: string;
 }
 
+export class AssignComplaintDto {
+  @IsString() @IsNotEmpty() assignedTo!: string;
+  @IsString() @IsOptional() actorId?: string;
+}
+
 export class AddCommentDto {
   @IsString() message!: string;
   @IsIn(['public','internal']) visibility!: 'public'|'internal';
   @IsString() @IsOptional() actorId?: string;
+}
+
+export class AddProgressDto {
+  @IsString() @IsNotEmpty() @MaxLength(1000)
+  description!: string;
+
+  @IsArray() @IsOptional()
+  photos?: string[];
 }
 
 // Society head advisory review (Option A): flag + pinned note

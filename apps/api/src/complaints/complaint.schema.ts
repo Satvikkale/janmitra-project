@@ -9,9 +9,13 @@ export class Complaint {
   @Prop({ required: true, index: true }) reporterId: string;
   @Prop({ required: true, index: true }) societyId: string;
   @Prop({ index: true }) orgId?: string;
+  @Prop() orgName?: string;
+  @Prop() orgSubtype?: string;
   @Prop({ required: true }) category: string;
   @Prop() subcategory?: string;
   @Prop() description?: string;
+  @Prop() sourceSocietyName?: string;
+  @Prop() routingReason?: string;
   @Prop([String]) media?: string[];
   @Prop({ type: { lat: Number, lng: Number } }) location?: { lat: number; lng: number };
   @Prop({ default: 'open', index: true }) status: 'open'|'assigned'|'in_progress'|'resolved'|'closed';

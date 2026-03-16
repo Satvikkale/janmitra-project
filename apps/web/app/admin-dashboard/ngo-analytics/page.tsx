@@ -42,6 +42,27 @@ interface AnalyticsData {
   complaints: Complaint[];
 }
 
+function normalizeSocietiesResponse(input: unknown): { pending: Society[]; verified: Society[] } {
+  const fallback = { pending: [], verified: [] };
+  if (!input) return fallback;
+
+  if (Array.isArray(input)) {
+    const pending = input
+      .filter((s) => (s?.status ?? 'approved') === 'pending')
+      .map((s) => ({ _id: s._id, name: s.name, createdAt: s.createdAt, isVerified: !!s.isVerified }));
+    const verified = input
+      .filter((s) => (s?.status ?? 'approved') === 'approved' || (s?.status === undefined && s?.isVerified !== false))
+      .map((s) => ({ _id: s._id, name: s.name, createdAt: s.createdAt, isVerified: !!s.isVerified }));
+    return { pending, verified };
+  }
+
+  const obj = input as { pending?: Society[]; verified?: Society[] };
+  return {
+    pending: Array.isArray(obj.pending) ? obj.pending : [],
+    verified: Array.isArray(obj.verified) ? obj.verified : [],
+  };
+}
+
 interface FilterState {
   dateFrom: string;
   dateTo: string;
@@ -78,10 +99,10 @@ export default function NGOAnalytics() {
     try {
       const [ngosData, societiesData, complaintsData] = await Promise.all([
         apiFetch('/v1/orgs/ngos'),
-        apiFetch('/v1/societies'),
+        apiFetch('/v1/societies?includePending=true'),
         apiFetch('/v1/complaints')
       ]);
-      setData({ ngos: ngosData, societies: societiesData, complaints: complaintsData });
+      setData({ ngos: ngosData, societies: normalizeSocietiesResponse(societiesData), complaints: complaintsData });
       setLastUpdated(new Date());
       setError(null);
     } catch (err: any) {

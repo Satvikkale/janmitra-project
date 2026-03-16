@@ -17,7 +17,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ComplaintsService } from './complaints.service';
-import { AddCommentDto, CreateComplaintDto, HeadReviewDto, ListQueryDto, UpdateStatusDto } from './dto';
+import { AddCommentDto, AddProgressDto, AssignComplaintDto, CreateComplaintDto, HeadReviewDto, ListQueryDto, UpdateStatusDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformUserGuard } from '../auth/platform-user.guard';
 import { AIService } from '../ai/ai.service';
@@ -32,6 +32,22 @@ export class ComplaintsController {
     private readonly aiService: AIService,
     private readonly uploadsService: UploadsService,
   ) {}
+
+  private resolveRoleFlags(req: any) {
+    const platformRoles: string[] = Array.isArray(req.platform?.roles) ? req.platform.roles : [];
+    const userRoles: string[] = Array.isArray(req.user?.roles) ? req.user.roles : [];
+    const roles = new Set([...platformRoles, ...userRoles]);
+    return {
+      isAdmin: roles.has('platform_admin'),
+      isNgo: roles.has('ngo') || roles.has('org_admin'),
+      isNgoUser: roles.has('ngo-user') || roles.has('org_staff'),
+    };
+  }
+
+  private resolveOrgId(req: any) {
+    const orgIds: string[] = Array.isArray(req.platform?.orgIds) ? req.platform.orgIds : [];
+    return orgIds[0] || req.user?.sub;
+  }
 
     @Post()
     @UseInterceptors(
@@ -89,16 +105,25 @@ export class ComplaintsController {
 
   @Get()
   async list(@Req() req: any, @Query() q: ListQueryDto) {
-    // If societyId is specified, allow fetching all complaints for that society
-    // (used by society heads to manage complaints)
-    // Otherwise, filter by the current user's reporter ID (My Issues)
-    if (!q.societyId) {
-      q.reporterId = req.user.sub;
-    } else {
-      const isAdmin = req.platform?.roles?.includes('platform_admin');
+    const { isAdmin, isNgo, isNgoUser } = this.resolveRoleFlags(req);
+
+    if (isAdmin || isNgo || isNgoUser) {
+      await this.svc.backfillLegacyAssignments();
+    }
+
+    if (q.societyId) {
       const isHeadOfSociety = (req.platform?.headSocietyIds || []).includes(q.societyId);
       if (!isAdmin && !isHeadOfSociety) throw new Error('Forbidden');
+    } else if (!isAdmin) {
+      if (isNgoUser) {
+        q.assignedTo = req.user.sub;
+      } else if (isNgo) {
+        q.orgId = q.orgId || this.resolveOrgId(req);
+      } else {
+        q.reporterId = req.user.sub;
+      }
     }
+
     const complaints = await this.svc.list(q);
     
     // Photos are now Cloudinary URLs, return as-is
@@ -113,6 +138,45 @@ export class ComplaintsController {
 
   @Get(':id/events')
   events(@Param('id') id: string) { return this.svc.eventsFor(id); }
+
+  @Get(':id/progress')
+  progress(@Param('id') id: string) { return this.svc.getProgress(id); }
+
+  @Post(':id/progress')
+  async addProgress(@Req() req: any, @Param('id') id: string, @Body() dto: AddProgressDto) {
+    const userRoles: string[] = Array.isArray(req.user?.roles) ? req.user.roles : [];
+    const platformRoles: string[] = Array.isArray(req.platform?.roles) ? req.platform.roles : [];
+    const roles = new Set([...userRoles, ...platformRoles]);
+    const isAdmin = roles.has('platform_admin');
+    const isNgo = roles.has('ngo') || roles.has('org_admin');
+    const isNgoUser = roles.has('ngo-user') || roles.has('org_staff');
+
+    if (!isAdmin && !isNgo && !isNgoUser) {
+      throw new Error('Forbidden');
+    }
+
+    return this.svc.addProgress(id, dto, {
+      actorId: req.user.sub,
+      isAdmin,
+      isNgo,
+      isNgoUser,
+      orgIds: Array.isArray(req.platform?.orgIds) ? req.platform.orgIds : [],
+    });
+  }
+
+  @Patch(':id/assign')
+  assign(@Req() req: any, @Param('id') id: string, @Body() dto: AssignComplaintDto) {
+    const { isAdmin, isNgo } = this.resolveRoleFlags(req);
+    if (!isAdmin && !isNgo) {
+      throw new Error('Forbidden');
+    }
+
+    return this.svc.assignComplaint(id, dto, {
+      actorId: req.user.sub,
+      isAdmin,
+      orgId: isNgo ? this.resolveOrgId(req) : undefined,
+    });
+  }
 
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) { return this.svc.updateStatus(id, dto); }

@@ -59,24 +59,32 @@ export default function Login() {
             });
             const j = await r.json();
             if (!r.ok) throw new Error(j.message || 'Login failed');
+
+            const roles: string[] = Array.isArray(j?.user?.roles) ? j.user.roles : [];
+            const isAdminRole = j?.user?.userType === 'admin' || roles.includes('platform_admin') || roles.includes('admin');
+            const isNgoRole = j?.user?.userType === 'ngo' || roles.includes('ngo') || roles.includes('org_admin');
+            let inferredUserType: 'admin' | 'ngo' | 'ngo-user' = 'ngo-user';
+            if (isAdminRole) {
+                inferredUserType = 'admin';
+            } else if (isNgoRole) {
+                inferredUserType = 'ngo';
+            }
+
             setTokens(j.accessToken, j.refreshToken);
             setIsLoggedIn(true);
-            if (typeof window !== 'undefined') {
+            if (globalThis.window !== undefined) {
                 localStorage.setItem('userData', JSON.stringify(j.user || {}));
-                if (j.user && j.user.userType) {
-                    localStorage.setItem('userType', j.user.userType);
-                } else {
-                    localStorage.setItem('userType', userType);
-                }
+                localStorage.setItem('userType', inferredUserType);
             }
-            if (userType === 'admin') {
+
+            if (inferredUserType === 'admin') {
                 router.push('/admin-dashboard');
-            } else if (userType === 'ngo' && j.user.isVerified) {
+            } else if (inferredUserType === 'ngo' && j.user.isVerified) {
                 router.push('/ngo-dashboard');
-            } else if (userType === 'ngo' && !j.user.isVerified) {
+            } else if (inferredUserType === 'ngo' && !j.user.isVerified) {
                 alert('Your NGO account is pending approval. Please wait for verification.');
                 router.push('/auth/login');
-            } else if (userType === 'ngo-user') {
+            } else if (inferredUserType === 'ngo-user') {
                 router.push('/ngo-users');
             }
         } catch (e: any) {

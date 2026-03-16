@@ -21,7 +21,7 @@ export interface CreateNotificationDto {
 @Injectable()
 export class NotificationsService {
   constructor(
-    @InjectModel(Notification.name) private notificationModel: Model<Notification>,
+    @InjectModel(Notification.name) private readonly notificationModel: Model<Notification>,
   ) {}
 
   async create(dto: CreateNotificationDto) {
@@ -71,12 +71,14 @@ export class NotificationsService {
   }
 
   async notifyNgoComplaintReceived(orgId: string, complaint: any) {
+    const sourceSociety = complaint.sourceSocietyName ? ` from ${complaint.sourceSocietyName}` : '';
+    const description = complaint.description ? ` Details: ${complaint.description}` : '';
     return this.create({
       recipientId: orgId,
       recipientType: 'ngo',
       type: 'complaint_received',
       title: 'New Complaint Received',
-      message: `A new ${complaint.category} complaint has been received and assigned to your organization.`,
+      message: `A new ${complaint.category} complaint${sourceSociety} has been routed to your organization.${description}`,
       data: {
         complaintId: complaint._id?.toString() || complaint.id,
         category: complaint.category,

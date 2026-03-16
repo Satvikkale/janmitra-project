@@ -7,7 +7,7 @@
       "auth0Domain": "YOUR_TENANT.auth0.com",
       "auth0ClientId": "YOUR_MOBILE_CLIENT_ID",
       "auth0Audience": "https://api.janastra.local",
-      "apiBase": "http://172.22.150.168:4000",
+      "apiBase": "http://10.205.14.168:4000",
       "eas": {
         "projectId": "1e2246ca-3cf4-4f78-a9ea-d29ce83e5db8"
       }

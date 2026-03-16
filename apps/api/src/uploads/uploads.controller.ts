@@ -1,5 +1,7 @@
-import { Controller, Get, Query, Logger } from '@nestjs/common';
+import { Body, BadRequestException, Controller, Get, Post, Query, Logger, UseGuards } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UploadsService } from './uploads.service';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -11,6 +13,7 @@ cloudinary.config({
 @Controller('uploads')
 export class UploadsController {
   private readonly logger = new Logger(UploadsController.name);
+  constructor(private readonly uploadsService: UploadsService) {}
 
   /**
    * Get signed upload parameters for Cloudinary
@@ -37,5 +40,20 @@ export class UploadsController {
       this.logger.error('Error generating upload signature', error.stack);
       throw error;
     }
+  }
+
+  @Post('images')
+  @UseGuards(JwtAuthGuard)
+  async uploadImages(
+    @Body() body: { images?: string[]; folder?: string },
+  ) {
+    const images = Array.isArray(body?.images) ? body.images : [];
+    if (images.length === 0) {
+      throw new BadRequestException('images array is required');
+    }
+
+    const folder = (body?.folder || 'progress').trim() || 'progress';
+    const urls = await this.uploadsService.uploadBase64Images(images, folder);
+    return { urls };
   }
 }
