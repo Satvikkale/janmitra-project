@@ -12,6 +12,7 @@ import { AIModule } from 'src/ai/ai.module';
 import { UploadsModule } from 'src/uploads/uploads.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrgComplaintsModule } from '../org-complaints/org-complaints.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     UploadsModule,
     BlockchainModule,
     NotificationsModule,
+    OrgComplaintsModule,
   ],
   controllers: [ComplaintsController],
   providers: [ComplaintsService],

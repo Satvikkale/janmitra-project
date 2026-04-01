@@ -2,11 +2,15 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Org } from './orgs.schema';
+import { OrgComplaintsService } from '../org-complaints/org-complaints.service';
 
 @Injectable()
 export class OrgsService {
   private readonly logger = new Logger(OrgsService.name);
-  constructor(@InjectModel(Org.name) private model: Model<Org>) {}
+  constructor(
+    @InjectModel(Org.name) private model: Model<Org>,
+    private readonly orgComplaints: OrgComplaintsService,
+  ) {}
 
   /**
    * Create a new organization
@@ -138,5 +142,103 @@ export class OrgsService {
 
   async updateNgo(id: string, updateData: any) {
     return this.model.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
+  async getPaidOrganizations() {
+    const organizations = await this.model
+      .find({
+        isVerified: true,
+        $or: [
+          { type: 'Organization' },
+          { roles: 'organization' },
+          { role: 'organization' } as any,
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return organizations.map((org: any) => {
+      const workItems = [
+        ...(Array.isArray(org.categories) ? org.categories : []),
+        ...(Array.isArray(org.offeredServices) ? org.offeredServices : []),
+      ]
+        .filter(Boolean)
+        .slice(0, 10);
+
+      return {
+        id: String(org._id),
+        name: org.businessName || org.name,
+        businessType: org.businessType || '',
+        industryType: org.industryType || org.subtype || '',
+        description: org.description || '',
+        website: org.website || '',
+        contactPhone: org.contactPhone || org.owner?.phoneNumber || '',
+        contactEmail: org.contactEmail || org.owner?.email || '',
+        address:
+          org.address ||
+          [
+            org.businessAddress?.addressLine1,
+            org.businessAddress?.addressLine2,
+            org.businessAddress?.city,
+            org.businessAddress?.state,
+            org.businessAddress?.pincode,
+          ]
+            .filter(Boolean)
+            .join(', '),
+        workItems,
+      };
+    });
+  }
+
+  async createPaidOrganizationBooking(orgId: string, userId: string, payload: any) {
+    const fullName = String(payload?.fullName || '').trim();
+    const phone = String(payload?.phone || '').trim();
+    const serviceNeeded = String(payload?.serviceNeeded || '').trim();
+
+    if (!fullName || !phone || !serviceNeeded) {
+      throw new BadRequestException('fullName, phone and serviceNeeded are required');
+    }
+
+    const org = await this.model.findOne({
+      _id: orgId,
+      isVerified: true,
+      $or: [{ type: 'Organization' }, { roles: 'organization' }, { role: 'organization' } as any],
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const booking = {
+      fullName,
+      phone,
+      email: String(payload?.email || '').trim(),
+      societyName: String(payload?.societyName || '').trim(),
+      serviceNeeded,
+      notes: String(payload?.notes || '').trim(),
+      requestedByUserId: userId,
+      requestedAt: new Date(),
+    };
+
+    await this.orgComplaints.createBookingRequest(
+      orgId,
+      userId,
+      fullName,
+      {
+        fullName,
+        phone,
+        email: String(payload?.email || '').trim(),
+        societyName: String(payload?.societyName || '').trim(),
+        serviceNeeded,
+        notes: String(payload?.notes || '').trim(),
+      },
+    );
+
+    this.logger.log(`Booking saved in OrgComplaint schema for org ${orgId} by user ${userId}`);
+
+    return {
+      message: 'Booking submitted successfully',
+      booking,
+    };
   }
 }

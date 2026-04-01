@@ -1,20 +1,19 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { API, setTokens } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
 export default function Login() {
-    const [userType, setUserType] = useState<'admin' | 'ngo' | 'ngo-user'>('admin');
-    const [formData, setFormData] = useState({ identifier: '', password: '', ngoName: '' });
+    const [userType, setUserType] = useState<'admin' | 'ngo' | 'ngo-user' | 'organization' | 'org-user'>('admin');
+    const [formData, setFormData] = useState({ identifier: '', password: '', ngoName: ''});
     const [err, setErr] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [availableNgos, setAvailableNgos] = useState<Array<{ name: string; id: string }>>([]);
     const { setIsLoggedIn } = useAuth();
     const router = useRouter();
-    const sp = useSearchParams();
 
     useEffect(() => {
         setMounted(true);
@@ -42,7 +41,7 @@ export default function Login() {
         setErr(null);
         setLoading(true);
         try {
-            const requestBody: any = {
+            const requestBody: { identifier: string; password: string; userType: string; ngoName?: string; organizationId?: string } = {
                 identifier: formData.identifier,
                 password: formData.password,
                 userType
@@ -63,9 +62,15 @@ export default function Login() {
             const roles: string[] = Array.isArray(j?.user?.roles) ? j.user.roles : [];
             const isAdminRole = j?.user?.userType === 'admin' || roles.includes('platform_admin') || roles.includes('admin');
             const isNgoRole = j?.user?.userType === 'ngo' || roles.includes('ngo') || roles.includes('org_admin');
-            let inferredUserType: 'admin' | 'ngo' | 'ngo-user' = 'ngo-user';
+            const isOrganization = j?.user?.userType === 'organization' || roles.includes('organization');
+            const isOrgUser = j?.user?.userType === 'org-user' || roles.includes('org-user');
+            let inferredUserType: 'admin' | 'ngo' | 'ngo-user' | 'organization' | 'org-user' = 'ngo-user';
             if (isAdminRole) {
                 inferredUserType = 'admin';
+            } else if (isOrganization) {
+                inferredUserType = 'organization';
+            } else if (isOrgUser) {
+                inferredUserType = 'org-user';
             } else if (isNgoRole) {
                 inferredUserType = 'ngo';
             }
@@ -79,6 +84,10 @@ export default function Login() {
 
             if (inferredUserType === 'admin') {
                 router.push('/admin-dashboard');
+            } else if (inferredUserType === 'organization') {
+                router.push('/org-dashboard');
+            } else if (inferredUserType === 'org-user') {
+                router.push('/org-user-dashboard');
             } else if (inferredUserType === 'ngo' && j.user.isVerified) {
                 router.push('/ngo-dashboard');
             } else if (inferredUserType === 'ngo' && !j.user.isVerified) {
@@ -87,8 +96,9 @@ export default function Login() {
             } else if (inferredUserType === 'ngo-user') {
                 router.push('/ngo-users');
             }
-        } catch (e: any) {
-            setErr(e.message);
+        } catch (e: unknown) {
+            const error = e as Error;
+            setErr(error.message);
         }
         setLoading(false);
     };
@@ -150,6 +160,28 @@ export default function Login() {
                         >
                             NGO
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setUserType('organization')}
+                            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                                userType === 'organization'
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Organization
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setUserType('org-user')}
+                            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                                userType === 'org-user'
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            Org User
+                        </button>
                     </div>
 
                     {/* Form */}
@@ -178,7 +210,7 @@ export default function Login() {
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                {userType === 'admin' ? 'Email or Phone' : userType === 'ngo-user' ? 'Your Name' : 'Contact Email or Phone'}
+                                {userType === 'admin' ? 'Email or Phone' : userType === 'ngo-user' ? 'Email' : userType === 'organization' ? 'Owner Email' : userType === 'org-user' ? 'Email' : 'Contact Email or Phone'}
                             </label>
                             <input
                                 type="text"
@@ -187,7 +219,11 @@ export default function Login() {
                                     userType === 'admin'
                                         ? 'Enter email or phone'
                                         : userType === 'ngo-user'
-                                        ? 'Enter your name'
+                                        ? 'Enter your email'
+                                        : userType === 'organization'
+                                        ? 'Enter owner email'
+                                        : userType === 'org-user'
+                                        ? 'Enter your email'
                                         : 'Enter contact email or phone'
                                 }
                                 value={formData.identifier}
@@ -245,7 +281,7 @@ export default function Login() {
 
                     <div className="mt-6 text-center">
                         <p className="text-slate-600 text-sm">
-                            Don't have an account?{' '}
+                            Don&apos;t have an account?{' '}
                             <Link
                                 href="/auth/register"
                                 className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"

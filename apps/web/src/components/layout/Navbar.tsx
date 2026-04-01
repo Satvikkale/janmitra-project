@@ -56,13 +56,17 @@ export default function Navbar() {
     switch (userType) {
       case 'admin':
       case 'platform_admin':
-        return { href: '/admin-dashboard', label: 'Dashboard' };
+        return { href: '/admin-dashboard', label: 'ADMIN_Dashboard' };
       case 'ngo':
       case 'org_admin':
-        return { href: '/ngo-dashboard', label: 'Dashboard' };
+        return { href: '/ngo-dashboard', label: 'NGO_Dashboard' };
+      case 'organization':
+        return { href: '/org-dashboard', label: 'ORG_Dashboard' };
       case 'ngo-user':
       case 'org_member':
-        return { href: '/ngo-users', label: 'Dashboard' };
+        return { href: '/ngo-users', label: 'NGO_USERS_Dashboard' };
+      case 'org-user':
+        return { href: '/org-user-dashboard', label: 'ORG_USER_Dashboard' };
       default:
         return null;
     }

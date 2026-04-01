@@ -7,7 +7,8 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../users/user.schema';
 import { Org } from '../orgs/orgs.schema';
 import { NgoUsersService } from '../ngo-users/ngo-users.service';
-import { NgoRegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
+import { OrganizationUsersService } from '../organization-users/organization-users.service';
+import { NgoRegisterDto, ForgotPasswordDto, ResetPasswordDto, OrganizationRegisterDto, OrganizationUserRegisterDto } from './dto';
 
 // Simple in-memory store for verification codes (in production, use Redis or DB)
 const verificationCodes = new Map<string, { code: string; expires: Date }>();
@@ -19,6 +20,7 @@ export class AuthService {
     @InjectModel(User.name) private users: Model<User>,
     @InjectModel(Org.name) private orgs: Model<Org>,
     private ngoUsersService: NgoUsersService,
+    private organizationUsersService: OrganizationUsersService,
     private jwt: JwtService,
   ) {}
 
@@ -48,13 +50,14 @@ export class AuthService {
   async registerNgoUser(dto: {
     ngoName: string;
     name: string;
+    email: string;
     position: string;
     mobileNo: string;
     password: string;
   }) {
-    const existingUser = await this.ngoUsersService.findByCredentials(dto.ngoName, dto.name);
+    const existingUser = await this.ngoUsersService.findByCredentials(dto.ngoName, dto.email);
     if (existingUser) {
-      throw new BadRequestException('NGO user already exists with this NGO name and name');
+      throw new BadRequestException('NGO user already exists with this NGO name and email');
     }
 
     const ngoUser = await this.ngoUsersService.create(dto);
@@ -62,6 +65,24 @@ export class AuthService {
 
     return {
       user: this.publicNgoUserFromSchema(ngoUser),
+      ...tokens,
+    };
+  }
+
+  /**
+   * Register an Organization user (employee of an Organization)
+   */
+  async registerOrgUser(dto: OrganizationUserRegisterDto) {
+    const existingUser = await this.organizationUsersService.findByCredentials(dto.email, dto.organizationId);
+    if (existingUser) {
+      throw new BadRequestException('Organization user already exists with this email in this organization');
+    }
+
+    const orgUser = await this.organizationUsersService.create(dto);
+    const tokens = this.signPair(String(orgUser._id), ['org-user']);
+
+    return {
+      user: this.publicOrgUserFromSchema(orgUser),
       ...tokens,
     };
   }
@@ -109,9 +130,67 @@ export class AuthService {
   }
 
   /**
+   * Register an Organization
+   */
+  async registerOrganization(dto: OrganizationRegisterDto) {
+    const existingOrg = await this.orgs.findOne({
+      $or: [
+        { businessName: dto.businessName },
+        { 'owner.email': dto.owner.email },
+        { registrationNumber: dto.registrationNumber },
+        { gstNumber: dto.gstNumber },
+      ],
+    });
+    if (existingOrg) {
+      throw new BadRequestException('Organization already registered with this name, email, registration number, or GST number');
+    }
+
+    const passwordHash = await argon2.hash(dto.password);
+    const orgData = {
+      name: dto.businessName,
+      type: 'Organization' as const,
+      businessName: dto.businessName,
+      businessType: dto.businessType,
+      industryType: dto.industryType,
+      registrationNumber: dto.registrationNumber,
+      gstNumber: dto.gstNumber,
+      owner: {
+        fullName: dto.owner.fullName,
+        email: dto.owner.email,
+        phoneNumber: dto.owner.phoneNumber,
+        panNumber: dto.owner.panNumber,
+        aadhaarNumber: dto.owner.aadhaarNumber,
+      },
+      businessAddress: {
+        addressLine1: dto.businessAddress.addressLine1,
+        addressLine2: dto.businessAddress.addressLine2,
+        city: dto.businessAddress.city,
+        state: dto.businessAddress.state,
+        pincode: dto.businessAddress.pincode,
+        country: dto.businessAddress.country,
+      },
+      passwordHash: passwordHash,
+      isVerified: true, // Organizations are verified by default
+      roles: ['organization'],
+      contactEmail: dto.owner.email,
+      contactPhone: dto.owner.phoneNumber,
+      contactPersonName: dto.owner.fullName,
+    };
+
+    const org = await this.orgs.create(orgData);
+
+    const tokens = this.signPair(String(org._id), ['organization']);
+    return {
+      message: 'Organization registration successful',
+      org: this.publicOrganization(org),
+      ...tokens,
+    };
+  }
+
+  /**
    * Login user with identifier and password
    */
-  async login(identifier: string, password: string, userType?: 'admin' | 'ngo' | 'ngo-user', ngoName?: string) {
+  async login(identifier: string, password: string, userType?: 'admin' | 'ngo' | 'ngo-user' | 'organization' | 'org-user', ngoName?: string, organizationId?: string) {
     try {
       if (userType === 'ngo-user') {
         if (!ngoName) {
@@ -126,6 +205,17 @@ export class AuthService {
         const tokens = this.signPair(String(ngoUser.id), ['ngo-user']);
         return {
           user: this.publicNgoUserFromSchema(ngoUser),
+          ...tokens,
+        };
+      } else if (userType === 'org-user') {
+        const orgUser = await this.organizationUsersService.findByEmail(identifier);
+        if (!orgUser || !(await this.organizationUsersService.validatePassword(password, orgUser.password))) {
+          throw new UnauthorizedException('Invalid credentials');
+        }
+
+        const tokens = this.signPair(String(orgUser._id), ['org-user']);
+        return {
+          user: this.publicOrgUserFromSchema(orgUser),
           ...tokens,
         };
       } else if (userType === 'ngo') {
@@ -146,6 +236,21 @@ export class AuthService {
         return {
           user: this.publicNgoOrg(ngoOrg),
           org: this.publicOrg(ngoOrg),
+          ...tokens,
+        };
+      } else if (userType === 'organization') {
+        const organization = await this.orgs.findOne({
+          type: 'Organization',
+          $or: [{ 'owner.email': identifier }, { contactEmail: identifier }],
+        });
+
+        if (!organization || !organization.passwordHash || !(await argon2.verify(organization.passwordHash, password))) {
+          throw new UnauthorizedException('Invalid credentials');
+        }
+
+        const tokens = this.signPair(String(organization._id), organization.roles || ['organization']);
+        return {
+          user: this.publicOrganization(organization),
           ...tokens,
         };
       } else {
@@ -186,6 +291,21 @@ export class AuthService {
    */
   async getAvailableNgos() {
     return this.ngoUsersService.getAvailableNgos();
+  }
+
+  /**
+   * Get available verified Organizations for user registration
+   */
+  async getAvailableOrganizations() {
+    const organizations = await this.orgs
+      .find({ type: 'Organization', isVerified: true })
+      .select('_id businessName')
+      .lean();
+
+    return organizations.map(org => ({
+      id: String(org._id),
+      name: org.businessName,
+    }));
   }
 
   /**
@@ -348,6 +468,18 @@ export class AuthService {
     };
   }
 
+  private publicOrgUserFromSchema(orgUser: any) {
+    return {
+      id: String(orgUser._id),
+      name: orgUser.name,
+      email: orgUser.email,
+      organizationId: orgUser.organizationId,
+      organizationName: orgUser.organizationName,
+      roles: ['org-user'],
+      userType: 'org-user',
+    };
+  }
+
   private publicOrg(org: any) {
     return {
       id: String(org._id),
@@ -364,6 +496,22 @@ export class AuthService {
       establishedYear: org.establishedYear,
       website: org.website,
       isVerified: org.isVerified,
+    };
+  }
+
+  private publicOrganization(org: any) {
+    return {
+      id: String(org._id),
+      businessName: org.businessName,
+      businessType: org.businessType,
+      industryType: org.industryType,
+      registrationNumber: org.registrationNumber,
+      gstNumber: org.gstNumber,
+      owner: org.owner,
+      businessAddress: org.businessAddress,
+      isVerified: org.isVerified,
+      userType: 'organization',
+      roles: org.roles,
     };
   }
 }

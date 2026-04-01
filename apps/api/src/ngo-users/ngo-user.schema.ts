@@ -12,6 +12,9 @@ export class NgoUser extends Document {
   name: string;
 
   @Prop({ required: true })
+  email: string;
+
+  @Prop({ required: true })
   position: string;
 
   @Prop({ required: true })

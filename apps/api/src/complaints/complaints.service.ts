@@ -8,6 +8,7 @@ import { EventsGateway } from '../realtime/events.gateway';
 import { UsersService } from '../users/users.service';
 import { Society } from '../societies/society.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OrgComplaintsService } from '../org-complaints/org-complaints.service';
 
 @Injectable()
 export class ComplaintsService {
@@ -20,6 +21,7 @@ export class ComplaintsService {
     private events: EventsGateway,
     private readonly users: UsersService,
     private readonly notifications: NotificationsService,
+    private readonly orgComplaints: OrgComplaintsService,
   ) {}
 
   private canUpdateProgress(
@@ -299,6 +301,29 @@ export class ComplaintsService {
             sourceSocietyName: doc.sourceSocietyName,
             routingReason: doc.routingReason,
           });
+
+          // Create OrgComplaint if this is a paid organization (type='Organization')
+          const isPaidOrganization = targetOrg?.type === 'Organization';
+          if (isPaidOrganization) {
+            try {
+              await this.orgComplaints.findOrCreateOrgComplaint(
+                String(doc._id),
+                routedOrgId,
+                {
+                  category: doc.category,
+                  description: doc.description,
+                  reporterName: reporter?.name,
+                  sourceSocietyName: doc.sourceSocietyName,
+                  location: doc.location,
+                },
+                dto.reporterId,
+                reporter?.name || 'Resident',
+              );
+              this.logger.log(`OrgComplaint created for paid organization: ${routedOrgId}`);
+            } catch (error) {
+              this.logger.error(`Failed to create OrgComplaint for org ${routedOrgId}`, error.stack);
+            }
+          }
         }
       }
       this.events.emitComplaintCreated(doc as any);

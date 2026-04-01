@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Get, Logger } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshDto, RegisterDto, NgoRegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
+import { LoginDto, RefreshDto, RegisterDto, NgoRegisterDto, ForgotPasswordDto, ResetPasswordDto, OrganizationRegisterDto, OrganizationUserRegisterDto } from './dto';
 
 @Controller('auth')
 export class AuthController {
@@ -27,6 +27,7 @@ export class AuthController {
   registerNgoUser(@Body() dto: {
     ngoName: string;
     name: string;
+    email: string;
     position: string;
     mobileNo: string;
     password: string;
@@ -34,15 +35,25 @@ export class AuthController {
     return this.auth.registerNgoUser(dto);
   }
 
+  @Post('register-org-user')
+  registerOrgUser(@Body() dto: OrganizationUserRegisterDto) {
+    return this.auth.registerOrgUser(dto);
+  }
+
   @Post('register-ngo')
   registerNgo(@Body() dto: NgoRegisterDto) {
     return this.auth.registerNgo(dto);
   }
 
+  @Post('register-organization')
+  registerOrganization(@Body() dto: OrganizationRegisterDto) {
+    return this.auth.registerOrganization(dto);
+  }
+
   @Post('login')
   async login(@Body() dto: LoginDto) {
     this.logger.log('Login endpoint called');
-    return this.auth.login(dto.identifier, dto.password, dto.userType, dto.ngoName);
+    return this.auth.login(dto.identifier, dto.password, dto.userType, dto.ngoName, dto.organizationId);
   }
 
   @Post('refresh')
@@ -54,5 +65,10 @@ export class AuthController {
   @Get('available-ngos')
   getAvailableNgos() {
     return this.auth.getAvailableNgos();
+  }
+
+  @Get('available-organizations')
+  getAvailableOrganizations() {
+    return this.auth.getAvailableOrganizations();
   }
 }

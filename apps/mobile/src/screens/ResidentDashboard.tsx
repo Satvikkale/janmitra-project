@@ -21,6 +21,7 @@ import ComplaintDetails from './ComplaintDetails';
 import SocietyDashboard from './SocietyDashboard';
 import ManageComplaint from './ManageComplaint';
 import AnnouncementsView from './AnnouncementsView';
+import PaidOrganizations from './PaidOrganizations';
 
 type Society = {
   _id: string;
@@ -42,7 +43,7 @@ export default function ResidentDashboard() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'raiseComplaint' | 'myComplaints' | 'societyDashboard' | 'complaintDetails' | 'manageComplaint' | 'announcements'>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'raiseComplaint' | 'myComplaints' | 'societyDashboard' | 'complaintDetails' | 'manageComplaint' | 'announcements' | 'paidOrganizations'>('dashboard');
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
 
   async function loadData() {
@@ -187,6 +188,15 @@ export default function ResidentDashboard() {
     );
   }
 
+  if (currentScreen === 'paidOrganizations') {
+    return (
+      <PaidOrganizations
+        onBack={() => setCurrentScreen('dashboard')}
+        societyName={approvedMemberships[0]?.society?.name || ''}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -293,6 +303,16 @@ export default function ResidentDashboard() {
                 <Ionicons name="megaphone-outline" size={40} color="#EF6C00" style={{ marginBottom: 8 }} />
                 <Text style={styles.actionTitle}>Announcements</Text>
                 <Text style={styles.actionSubtitle}>Society news</Text>
+              </TouchableOpacity>
+
+              {/* Paid Organizations */}
+              <TouchableOpacity
+                style={[styles.actionCard, { backgroundColor: '#E8F7EF' }]}
+                onPress={() => setCurrentScreen('paidOrganizations')}
+              >
+                <Ionicons name="briefcase-outline" size={40} color="#1B8A5A" style={{ marginBottom: 8 }} />
+                <Text style={styles.actionTitle}>Paid Organization</Text>
+                <Text style={styles.actionSubtitle}>Book services for society work</Text>
               </TouchableOpacity>
 
               {/* Society Info */}

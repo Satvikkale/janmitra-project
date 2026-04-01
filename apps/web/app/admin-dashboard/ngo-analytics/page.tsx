@@ -1,15 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiFetch } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer
+  PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer,
+  AreaChart, Area, RadialBarChart, RadialBar
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  TrendingUp, TrendingDown, Activity, Building2, Users2,
+  AlertTriangle, CheckCircle2, Clock, ArrowUp, ArrowDown,
+  RefreshCw, Zap, BarChart3, PieChartIcon
+} from 'lucide-react';
 
 interface NGO {
   _id: string;
@@ -81,14 +88,113 @@ const PRIORITY_COLORS: Record<string, string> = {
   high: '#F87171', med: '#FBBF24', low: '#34D399'
 };
 
+// Animated Counter Component
+function AnimatedCounter({ value, duration = 1000, suffix = '', prefix = '' }: {
+  value: number; duration?: number; suffix?: string; prefix?: string;
+}) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const previousValue = useRef(0);
+
+  useEffect(() => {
+    const startValue = previousValue.current;
+    const endValue = value;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(startValue + (endValue - startValue) * easeOut);
+      setDisplayValue(currentValue);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        previousValue.current = endValue;
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return <span>{prefix}{displayValue.toLocaleString()}{suffix}</span>;
+}
+
+// Radial Progress Component
+function RadialProgress({ value, max, label, color, size = 120 }: {
+  value: number; max: number; label: string; color: string; size?: number;
+}) {
+  const percentage = max > 0 ? (value / max) * 100 : 0;
+  const data = [{ name: label, value: percentage, fill: color }];
+
+  return (
+    <div className="flex flex-col items-center">
+      <ResponsiveContainer width={size} height={size}>
+        <RadialBarChart
+          cx="50%"
+          cy="50%"
+          innerRadius="60%"
+          outerRadius="90%"
+          data={data}
+          startAngle={90}
+          endAngle={-270}
+        >
+          <RadialBar
+            dataKey="value"
+            background={{ fill: '#f1f5f9' }}
+            cornerRadius={10}
+          />
+        </RadialBarChart>
+      </ResponsiveContainer>
+      <div className="text-center -mt-16">
+        <p className="text-2xl font-bold text-slate-800">{Math.round(percentage)}%</p>
+        <p className="text-xs text-slate-500">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// Live Indicator Pulse
+function LiveIndicator() {
+  return (
+    <span className="relative flex h-3 w-3">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+    </span>
+  );
+}
+
+// Change Indicator
+function ChangeIndicator({ current, previous }: { current: number; previous: number }) {
+  const change = current - previous;
+  const percentChange = previous > 0 ? ((change / previous) * 100).toFixed(1) : '0';
+
+  if (change === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex items-center gap-1 text-xs font-medium ${change > 0 ? 'text-green-600' : 'text-red-600'}`}
+    >
+      {change > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      <span>{change > 0 ? '+' : ''}{change} ({percentChange}%)</span>
+    </motion.div>
+  );
+}
+
 export default function NGOAnalytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [previousData, setPreviousData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(10);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'ngos' | 'societies' | 'complaints'>('overview');
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '', dateTo: '', status: '', priority: '',
     category: '', ngoVerification: '', reportType: 'summary'
@@ -97,11 +203,13 @@ export default function NGOAnalytics() {
 
   const fetchAllData = useCallback(async () => {
     try {
+      setIsRefreshing(true);
       const [ngosData, societiesData, complaintsData] = await Promise.all([
         apiFetch('/v1/orgs/ngos'),
         apiFetch('/v1/societies?includePending=true'),
         apiFetch('/v1/complaints')
       ]);
+      setPreviousData(data);
       setData({ ngos: ngosData, societies: normalizeSocietiesResponse(societiesData), complaints: complaintsData });
       setLastUpdated(new Date());
       setError(null);
@@ -110,8 +218,9 @@ export default function NGOAnalytics() {
       setError('Failed to fetch analytics data');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
+  }, [data]);
 
   useEffect(() => {
     if (isLoggedIn) fetchAllData();
@@ -119,9 +228,9 @@ export default function NGOAnalytics() {
 
   useEffect(() => {
     if (!isLoggedIn || !autoRefresh) return;
-    const interval = setInterval(() => { fetchAllData(); }, 10000);
+    const interval = setInterval(() => { fetchAllData(); }, refreshInterval * 1000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, autoRefresh, fetchAllData]);
+  }, [isLoggedIn, autoRefresh, fetchAllData, refreshInterval]);
 
   const filteredData = useMemo(() => {
     if (!data) return null;
@@ -302,6 +411,11 @@ export default function NGOAnalytics() {
   const displayNGOs = filteredData?.ngos || [...(data.ngos.pending || []), ...(data.ngos.verified || [])];
   const displaySocieties = filteredData?.societies || [...(data.societies.pending || []), ...(data.societies.verified || [])];
 
+  // Previous data for change tracking
+  const prevNGOs = previousData ? [...(previousData.ngos.pending || []), ...(previousData.ngos.verified || [])] : [];
+  const prevSocieties = previousData ? [...(previousData.societies.pending || []), ...(previousData.societies.verified || [])] : [];
+  const prevComplaints = previousData?.complaints || [];
+
   const totalNGOs = displayNGOs.length;
   const verifiedNGOs = displayNGOs.filter(n => n.isVerified).length;
   const pendingNGOs = displayNGOs.filter(n => !n.isVerified).length;
@@ -345,6 +459,69 @@ export default function NGOAnalytics() {
   const openComplaints = displayComplaints.filter(c => c.status === 'open').length;
   const inProgressComplaints = displayComplaints.filter(c => c.status === 'in_progress').length;
   const assignedComplaints = displayComplaints.filter(c => c.status === 'assigned').length;
+  const highPriorityComplaints = displayComplaints.filter(c => c.priority === 'high').length;
+
+  // Additional metrics for enhanced analytics - computed values
+  const ngoCategories = (() => {
+    const categoryCount: Record<string, number> = {};
+    displayNGOs.forEach(n => {
+      n.categories?.forEach(cat => {
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+      });
+    });
+    const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#6366F1'];
+    return Object.entries(categoryCount)
+      .map(([name, count], index) => ({ name, count, fill: colors[index % colors.length] }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  })();
+
+  const ngoCityDistribution = (() => {
+    const cityCount: Record<string, number> = {};
+    displayNGOs.forEach(n => {
+      if (n.city) {
+        cityCount[n.city] = (cityCount[n.city] || 0) + 1;
+      }
+    });
+    return Object.entries(cityCount)
+      .map(([city, count]) => ({ city, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  })();
+
+  // Weekly trend for the current week
+  const getWeeklyData = () => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const now = new Date();
+    const weekData: { day: string; complaints: number; ngos: number; societies: number }[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dayStr = days[date.getDay()];
+      const dateStr = date.toDateString();
+
+      weekData.push({
+        day: dayStr,
+        complaints: displayComplaints.filter(c => new Date(c.createdAt).toDateString() === dateStr).length,
+        ngos: displayNGOs.filter(n => new Date(n.createdAt).toDateString() === dateStr).length,
+        societies: displaySocieties.filter(s => new Date(s.createdAt).toDateString() === dateStr).length
+      });
+    }
+    return weekData;
+  };
+
+  const weeklyData = getWeeklyData();
+
+  // Compute society breakdown
+  const verifiedSocieties = displaySocieties.filter(s => s.isVerified).length;
+  const pendingSocieties = displaySocieties.filter(s => !s.isVerified).length;
+
+  // Today's stats
+  const today = new Date().toDateString();
+  const todayComplaints = displayComplaints.filter(c => new Date(c.createdAt).toDateString() === today).length;
+  const todayNGOs = displayNGOs.filter(n => new Date(n.createdAt).toDateString() === today).length;
+  const todaySocieties = displaySocieties.filter(s => new Date(s.createdAt).toDateString() === today).length;
 
   return (
     <div className="p-4 sm:p-8 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
@@ -354,26 +531,76 @@ export default function NGOAnalytics() {
           <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             NGO Analytics Dashboard
           </h1>
-          <p className="text-slate-500 text-sm mt-2 flex items-center gap-2">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </p>
+          <div className="flex items-center gap-3 mt-2">
+            <LiveIndicator />
+            <p className="text-slate-500 text-sm">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+            {isRefreshing && (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              >
+                <RefreshCw className="w-4 h-4 text-blue-500" />
+              </motion.div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-sm text-slate-600 bg-white/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-slate-200">
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="rounded border-slate-300 text-blue-500 focus:ring-blue-400" />
-            Auto-refresh
-          </label>
+          <div className="flex items-center gap-2 bg-white/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-slate-200">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="rounded border-slate-300 text-blue-500 focus:ring-blue-400"
+            />
+            <span className="text-sm text-slate-600">Auto-refresh</span>
+            <select
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              className="text-sm border-0 bg-transparent focus:ring-0 text-slate-600"
+              disabled={!autoRefresh}
+            >
+              <option value={5}>5s</option>
+              <option value={10}>10s</option>
+              <option value={30}>30s</option>
+              <option value={60}>1m</option>
+            </select>
+          </div>
           <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${showFilters ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-white/70 text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
             Filters
           </button>
           <button onClick={() => setShowExportModal(true)} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg">
             Download Report
           </button>
-          <button onClick={fetchAllData} className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg">
+          <button onClick={fetchAllData} disabled={isRefreshing} className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2">
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2 mb-6 bg-white/50 backdrop-blur-sm rounded-xl p-1 border border-slate-200 overflow-x-auto">
+        {[
+          { id: 'overview', label: 'Overview', icon: BarChart3 },
+          { id: 'ngos', label: 'NGOs', icon: Building2 },
+          { id: 'societies', label: 'Societies', icon: Users2 },
+          { id: 'complaints', label: 'Complaints', icon: AlertTriangle }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Filter Panel */}
@@ -432,195 +659,639 @@ export default function NGOAnalytics() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-blue-100 hover:shadow-md transition-shadow">
-          <p className="text-sm text-slate-500 font-medium mb-2">Total NGOs</p>
-          <p className="text-3xl font-bold text-slate-800">{totalNGOs}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-blue-100 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500 font-medium">Total NGOs</p>
+            <Building2 className="w-5 h-5 text-blue-500" />
+          </div>
+          <p className="text-3xl font-bold text-slate-800">
+            <AnimatedCounter value={totalNGOs} />
+          </p>
+          <ChangeIndicator current={totalNGOs} previous={prevNGOs.length} />
           <div className="flex gap-2 mt-3">
             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">{verifiedNGOs} verified</span>
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">{pendingNGOs} pending</span>
           </div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-purple-100 hover:shadow-md transition-shadow">
-          <p className="text-sm text-slate-500 font-medium mb-2">Total Societies</p>
-          <p className="text-3xl font-bold text-slate-800">{totalSocieties}</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-purple-100 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500 font-medium">Total Societies</p>
+            <Users2 className="w-5 h-5 text-purple-500" />
+          </div>
+          <p className="text-3xl font-bold text-slate-800">
+            <AnimatedCounter value={totalSocieties} />
+          </p>
+          <ChangeIndicator current={totalSocieties} previous={prevSocieties.length} />
           <p className="text-xs text-slate-400 mt-3">Registered communities</p>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-amber-100 hover:shadow-md transition-shadow">
-          <p className="text-sm text-slate-500 font-medium mb-2">Total Complaints</p>
-          <p className="text-3xl font-bold text-slate-800">{totalComplaints}</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-amber-100 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500 font-medium">Total Complaints</p>
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+          </div>
+          <p className="text-3xl font-bold text-slate-800">
+            <AnimatedCounter value={totalComplaints} />
+          </p>
+          <ChangeIndicator current={totalComplaints} previous={prevComplaints.length} />
           <div className="flex gap-2 mt-3">
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">{openComplaints} open</span>
             <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">{inProgressComplaints} active</span>
           </div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-green-100 hover:shadow-md transition-shadow">
-          <p className="text-sm text-slate-500 font-medium mb-2">Resolution Rate</p>
-          <p className="text-3xl font-bold text-slate-800">{resolutionRate}%</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-green-100 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500 font-medium">Resolution Rate</p>
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+          </div>
+          <p className="text-3xl font-bold text-slate-800">
+            <AnimatedCounter value={resolutionRate} suffix="%" />
+          </p>
           <div className="w-full bg-slate-100 rounded-full h-2.5 mt-3 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-2.5 rounded-full transition-all duration-700" style={{ width: `${resolutionRate}%` }}></div>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${resolutionRate}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className="bg-gradient-to-r from-green-400 to-emerald-500 h-2.5 rounded-full"
+            />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-red-100 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500 font-medium">High Priority</p>
+            <Zap className="w-5 h-5 text-red-500" />
+          </div>
+          <p className="text-3xl font-bold text-slate-800">
+            <AnimatedCounter value={highPriorityComplaints} />
+          </p>
+          <p className="text-xs text-slate-400 mt-3">
+            {totalComplaints > 0 ? Math.round((highPriorityComplaints / totalComplaints) * 100) : 0}% of total complaints
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Today's Activity Summary */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-6 mb-8 text-white"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-5 h-5" />
+          <h3 className="text-lg font-semibold">Today's Activity</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-6">
+          <div>
+            <p className="text-blue-100 text-sm mb-1">New Complaints</p>
+            <p className="text-3xl font-bold"><AnimatedCounter value={todayComplaints} /></p>
+          </div>
+          <div>
+            <p className="text-blue-100 text-sm mb-1">New NGOs</p>
+            <p className="text-3xl font-bold"><AnimatedCounter value={todayNGOs} /></p>
+          </div>
+          <div>
+            <p className="text-blue-100 text-sm mb-1">New Societies</p>
+            <p className="text-3xl font-bold"><AnimatedCounter value={todaySocieties} /></p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Monthly Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyTrendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="month" tick={{ fill: '#64748B', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
-              <Legend />
-              <Line type="monotone" dataKey="complaints" stroke="#F59E0B" strokeWidth={3} dot={{ fill: '#F59E0B', r: 4 }} name="Complaints" />
-              <Line type="monotone" dataKey="societies" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: '#8B5CF6', r: 4 }} name="Societies" />
-              <Line type="monotone" dataKey="ngos" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6', r: 4 }} name="NGOs" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Complaints by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={complaintsByCategoryData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis type="number" tick={{ fill: '#64748B', fontSize: 12 }} />
-              <YAxis dataKey="category" type="category" width={100} tick={{ fill: '#64748B', fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
-              <Bar dataKey="count" fill="url(#colorGradient)" radius={[0, 8, 8, 0]} />
-              <defs>
-                <linearGradient id="colorGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#60A5FA" />
-                  <stop offset="100%" stopColor="#818CF8" />
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <AnimatePresence mode="wait">
+        {(activeTab === 'overview' || activeTab === 'complaints') && (
+          <motion.div
+            key="row1"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Weekly Activity</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={weeklyData}>
+                  <defs>
+                    <linearGradient id="colorComplaints" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorNGOs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorSocieties" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="day" tick={{ fill: '#64748B', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                  <Legend />
+                  <Area type="monotone" dataKey="complaints" stroke="#F59E0B" strokeWidth={2} fill="url(#colorComplaints)" name="Complaints" />
+                  <Area type="monotone" dataKey="ngos" stroke="#3B82F6" strokeWidth={2} fill="url(#colorNGOs)" name="NGOs" />
+                  <Area type="monotone" dataKey="societies" stroke="#8B5CF6" strokeWidth={2} fill="url(#colorSocieties)" name="Societies" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Monthly Trend</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={monthlyTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="month" tick={{ fill: '#64748B', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="complaints" stroke="#F59E0B" strokeWidth={3} dot={{ fill: '#F59E0B', r: 4 }} name="Complaints" />
+                  <Line type="monotone" dataKey="societies" stroke="#8B5CF6" strokeWidth={3} dot={{ fill: '#8B5CF6', r: 4 }} name="Societies" />
+                  <Line type="monotone" dataKey="ngos" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6', r: 4 }} name="NGOs" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Complaint Status</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={complaintStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
-                {complaintStatusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
-            {complaintStatusData.map((entry, index) => (
-              <div key={index} className="flex items-center gap-1.5 text-xs">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
-                <span className="text-slate-600 capitalize">{entry.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Priority Levels</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={complaintPriorityData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
-                {complaintPriorityData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex justify-center gap-4 mt-2">
-            {complaintPriorityData.map((entry, index) => (
-              <div key={index} className="flex items-center gap-1.5 text-xs">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
-                <span className="text-slate-600 capitalize">{entry.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">NGO Verification</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={ngoVerificationData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
-                {ngoVerificationData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex justify-center gap-4 mt-2">
-            {ngoVerificationData.map((entry, index) => (
-              <div key={index} className="flex items-center gap-1.5 text-xs">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
-                <span className="text-slate-600">{entry.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Complaints by Category - visible on overview and complaints tabs */}
+      <AnimatePresence mode="wait">
+        {(activeTab === 'overview' || activeTab === 'complaints') && (
+          <motion.div
+            key="categoryChart"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Complaints by Category</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={complaintsByCategoryData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis type="number" tick={{ fill: '#64748B', fontSize: 12 }} />
+                  <YAxis dataKey="category" type="category" width={100} tick={{ fill: '#64748B', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                  <Bar dataKey="count" fill="url(#colorGradient)" radius={[0, 8, 8, 0]} />
+                  <defs>
+                    <linearGradient id="colorGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#60A5FA" />
+                      <stop offset="100%" stopColor="#818CF8" />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
 
-      {/* Status Breakdown & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-5">Status Breakdown</h3>
-          <div className="space-y-5">
-            {[
-              { label: 'Open', count: openComplaints, gradient: 'from-amber-400 to-yellow-500', bg: 'bg-amber-50' },
-              { label: 'Assigned', count: assignedComplaints, gradient: 'from-blue-400 to-blue-500', bg: 'bg-blue-50' },
-              { label: 'In Progress', count: inProgressComplaints, gradient: 'from-purple-400 to-violet-500', bg: 'bg-purple-50' },
-              { label: 'Resolved', count: displayComplaints.filter(c => c.status === 'resolved').length, gradient: 'from-green-400 to-emerald-500', bg: 'bg-green-50' },
-              { label: 'Closed', count: displayComplaints.filter(c => c.status === 'closed').length, gradient: 'from-slate-400 to-slate-500', bg: 'bg-slate-50' }
-            ].map((item) => (
-              <div key={item.label} className={`p-3 rounded-xl ${item.bg}`}>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-700 font-medium">{item.label}</span>
-                  <span className="font-semibold text-slate-800">{item.count} ({totalComplaints > 0 ? Math.round((item.count / totalComplaints) * 100) : 0}%)</span>
+            {/* Radial Progress Indicators */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Performance Metrics</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <RadialProgress
+                  value={verifiedNGOs}
+                  max={totalNGOs}
+                  label="NGO Verified"
+                  color="#22C55E"
+                />
+                <RadialProgress
+                  value={resolvedComplaints}
+                  max={totalComplaints}
+                  label="Resolved"
+                  color="#3B82F6"
+                />
+                <RadialProgress
+                  value={totalComplaints - highPriorityComplaints}
+                  max={totalComplaints}
+                  label="Non-Critical"
+                  color="#8B5CF6"
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Charts Row 2 - Pie Charts */}
+      <AnimatePresence mode="wait">
+        {(activeTab === 'overview' || activeTab === 'complaints') && (
+          <motion.div
+            key="pieCharts"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Complaint Status</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={complaintStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
+                    {complaintStatusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-2 mt-2">
+                {complaintStatusData.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-1.5 text-xs">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
+                    <span className="text-slate-600 capitalize">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Priority Levels</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={complaintPriorityData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
+                    {complaintPriorityData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-4 mt-2">
+                {complaintPriorityData.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-1.5 text-xs">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
+                    <span className="text-slate-600 capitalize">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">NGO Verification</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={ngoVerificationData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={3} dataKey="value">
+                    {ngoVerificationData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.fill} stroke="white" strokeWidth={2} />))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-4 mt-2">
+                {ngoVerificationData.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-1.5 text-xs">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }}></span>
+                    <span className="text-slate-600">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* NGO Specific Analytics */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'ngos' && (
+          <motion.div
+            key="ngoAnalytics"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* NGO Categories Distribution */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">NGO Categories</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={ngoCategories}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                    <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                      {ngoCategories.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#6366F1'][index % 6]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* NGO City Distribution */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">NGOs by City</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={ngoCityDistribution} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis type="number" tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <YAxis dataKey="city" type="category" width={100} tick={{ fill: '#64748B', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                    <Bar dataKey="count" fill="#3B82F6" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* NGO Verification Progress */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100 mb-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-5">NGO Verification Status</h3>
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-green-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-slate-700 font-medium">Verified NGOs</span>
+                    </div>
+                    <span className="font-bold text-slate-800">{verifiedNGOs} ({totalNGOs > 0 ? Math.round((verifiedNGOs / totalNGOs) * 100) : 0}%)</span>
+                  </div>
+                  <div className="w-full bg-white rounded-full h-3 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${totalNGOs > 0 ? (verifiedNGOs / totalNGOs) * 100 : 0}%` }}
+                      transition={{ duration: 1 }}
+                      className="bg-gradient-to-r from-green-400 to-emerald-500 h-3 rounded-full"
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-white/80 rounded-full h-2.5 overflow-hidden">
-                  <div className={`bg-gradient-to-r ${item.gradient} h-2.5 rounded-full transition-all duration-700`} style={{ width: `${totalComplaints > 0 ? (item.count / totalComplaints) * 100 : 0}%` }}></div>
+                <div className="p-4 rounded-xl bg-amber-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-amber-600" />
+                      <span className="text-slate-700 font-medium">Pending Verification</span>
+                    </div>
+                    <span className="font-bold text-slate-800">{pendingNGOs} ({totalNGOs > 0 ? Math.round((pendingNGOs / totalNGOs) * 100) : 0}%)</span>
+                  </div>
+                  <div className="w-full bg-white rounded-full h-3 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${totalNGOs > 0 ? (pendingNGOs / totalNGOs) * 100 : 0}%` }}
+                      transition={{ duration: 1 }}
+                      className="bg-gradient-to-r from-amber-400 to-yellow-500 h-3 rounded-full"
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-5">Recent Activity</h3>
-          <div className="space-y-3 max-h-[340px] overflow-y-auto pr-2">
-            {[...displayComplaints]
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .slice(0, 10)
-              .map((complaint) => (
-                <div key={complaint._id} className="flex items-start gap-3 p-3 bg-slate-50/80 rounded-xl hover:bg-slate-100/80 transition-colors">
-                  <div className={`w-3 h-3 rounded-full mt-1.5 ring-4 ${
-                    complaint.status === 'open' ? 'bg-amber-400 ring-amber-100' :
-                    complaint.status === 'assigned' ? 'bg-blue-400 ring-blue-100' :
-                    complaint.status === 'in_progress' ? 'bg-purple-400 ring-purple-100' :
-                    complaint.status === 'resolved' ? 'bg-green-400 ring-green-100' : 'bg-slate-400 ring-slate-100'
-                  }`}></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{complaint.category}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {new Date(complaint.createdAt).toLocaleString()} &bull;{' '}
-                      <span className={`font-medium ${complaint.priority === 'high' ? 'text-red-500' : complaint.priority === 'med' ? 'text-amber-500' : 'text-green-500'}`}>
-                        {complaint.priority} priority
+            </div>
+
+            {/* Recent NGOs */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-5">Recent NGO Registrations</h3>
+              <div className="space-y-3 max-h-[340px] overflow-y-auto pr-2">
+                {[...displayNGOs]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 10)
+                  .map((ngo) => (
+                    <motion.div
+                      key={ngo._id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-start gap-3 p-3 bg-slate-50/80 rounded-xl hover:bg-slate-100/80 transition-colors"
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${ngo.isVerified ? 'bg-green-100' : 'bg-amber-100'}`}>
+                        <Building2 className={`w-5 h-5 ${ngo.isVerified ? 'text-green-600' : 'text-amber-600'}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{ngo.ngoName}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {ngo.city || 'N/A'} • {new Date(ngo.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${ngo.isVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {ngo.isVerified ? 'Verified' : 'Pending'}
                       </span>
+                    </motion.div>
+                  ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Societies Specific Analytics */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'societies' && (
+          <motion.div
+            key="societiesAnalytics"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* Societies Status */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">Society Statistics</h3>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100">
+                    <p className="text-sm text-purple-600 font-medium">Total Societies</p>
+                    <p className="text-3xl font-bold text-purple-800 mt-1">
+                      <AnimatedCounter value={totalSocieties} />
                     </p>
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
-                    complaint.status === 'open' ? 'bg-amber-100 text-amber-700' :
-                    complaint.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
-                    complaint.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
-                    complaint.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
-                  }`}>
-                    {complaint.status.replace('_', ' ')}
-                  </span>
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100">
+                    <p className="text-sm text-green-600 font-medium">Active</p>
+                    <p className="text-3xl font-bold text-green-800 mt-1">
+                      <AnimatedCounter value={verifiedSocieties} />
+                    </p>
+                  </div>
                 </div>
-              ))}
-          </div>
-        </div>
-      </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Active', value: verifiedSocieties, fill: '#22C55E' },
+                        { name: 'Pending', value: pendingSocieties, fill: '#F59E0B' }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      <Cell fill="#22C55E" stroke="white" strokeWidth={2} />
+                      <Cell fill="#F59E0B" stroke="white" strokeWidth={2} />
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Society Growth Trend */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">Society Growth</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={monthlyTrendData}>
+                    <defs>
+                      <linearGradient id="societyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="month" tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <YAxis tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: '12px', border: '1px solid #E2E8F0' }} />
+                    <Area type="monotone" dataKey="societies" stroke="#8B5CF6" strokeWidth={3} fill="url(#societyGradient)" name="Societies" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Recent Societies */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-5">Recent Society Registrations</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...displaySocieties]
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .slice(0, 9)
+                  .map((society) => (
+                    <motion.div
+                      key={society._id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="p-4 bg-gradient-to-br from-slate-50 to-purple-50 rounded-xl border border-purple-100 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Users2 className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{society.name}</p>
+                          <p className="text-xs text-slate-500">{new Date(society.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Status Breakdown & Recent Activity */}
+      <AnimatePresence mode="wait">
+        {(activeTab === 'overview' || activeTab === 'complaints') && (
+          <motion.div
+            key="statusActivity"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+          >
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <h3 className="text-lg font-semibold text-slate-800 mb-5">Complaint Status Breakdown</h3>
+              <div className="space-y-5">
+                {[
+                  { label: 'Open', count: openComplaints, gradient: 'from-amber-400 to-yellow-500', bg: 'bg-amber-50', icon: AlertTriangle },
+                  { label: 'Assigned', count: assignedComplaints, gradient: 'from-blue-400 to-blue-500', bg: 'bg-blue-50', icon: Users2 },
+                  { label: 'In Progress', count: inProgressComplaints, gradient: 'from-purple-400 to-violet-500', bg: 'bg-purple-50', icon: Activity },
+                  { label: 'Resolved', count: displayComplaints.filter(c => c.status === 'resolved').length, gradient: 'from-green-400 to-emerald-500', bg: 'bg-green-50', icon: CheckCircle2 },
+                  { label: 'Closed', count: displayComplaints.filter(c => c.status === 'closed').length, gradient: 'from-slate-400 to-slate-500', bg: 'bg-slate-50', icon: Clock }
+                ].map((item, index) => (
+                  <motion.div
+                    key={item.label}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className={`p-4 rounded-xl ${item.bg}`}
+                  >
+                    <div className="flex justify-between text-sm mb-2">
+                      <div className="flex items-center gap-2">
+                        <item.icon className="w-4 h-4 text-slate-600" />
+                        <span className="text-slate-700 font-medium">{item.label}</span>
+                      </div>
+                      <span className="font-semibold text-slate-800">
+                        <AnimatedCounter value={item.count} /> ({totalComplaints > 0 ? Math.round((item.count / totalComplaints) * 100) : 0}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/80 rounded-full h-3 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${totalComplaints > 0 ? (item.count / totalComplaints) * 100 : 0}%` }}
+                        transition={{ duration: 1, delay: index * 0.1 }}
+                        className={`bg-gradient-to-r ${item.gradient} h-3 rounded-full`}
+                      />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-6 border border-slate-100">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-semibold text-slate-800">Recent Complaints</h3>
+                <div className="flex items-center gap-2">
+                  <LiveIndicator />
+                  <span className="text-xs text-slate-500">Live updates</span>
+                </div>
+              </div>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                <AnimatePresence>
+                  {[...displayComplaints]
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 10)
+                    .map((complaint, index) => (
+                      <motion.div
+                        key={complaint._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-start gap-3 p-3 bg-slate-50/80 rounded-xl hover:bg-slate-100/80 transition-colors"
+                      >
+                        <div className={`w-3 h-3 rounded-full mt-1.5 ring-4 ${
+                          complaint.status === 'open' ? 'bg-amber-400 ring-amber-100' :
+                          complaint.status === 'assigned' ? 'bg-blue-400 ring-blue-100' :
+                          complaint.status === 'in_progress' ? 'bg-purple-400 ring-purple-100' :
+                          complaint.status === 'resolved' ? 'bg-green-400 ring-green-100' : 'bg-slate-400 ring-slate-100'
+                        }`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{complaint.category}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {new Date(complaint.createdAt).toLocaleString()} &bull;{' '}
+                            <span className={`font-medium ${complaint.priority === 'high' ? 'text-red-500' : complaint.priority === 'med' ? 'text-amber-500' : 'text-green-500'}`}>
+                              {complaint.priority} priority
+                            </span>
+                          </p>
+                        </div>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
+                          complaint.status === 'open' ? 'bg-amber-100 text-amber-700' :
+                          complaint.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
+                          complaint.status === 'in_progress' ? 'bg-purple-100 text-purple-700' :
+                          complaint.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {complaint.status.replace('_', ' ')}
+                        </span>
+                      </motion.div>
+                    ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Export Modal */}
       {showExportModal && (

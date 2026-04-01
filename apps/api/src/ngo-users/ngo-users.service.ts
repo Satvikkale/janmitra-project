@@ -15,6 +15,7 @@ export class NgoUsersService {
   async create(createNgoUserDto: {
     ngoName: string;
     name: string;
+    email: string;
     position: string;
     mobileNo: string;
     password: string;
@@ -39,8 +40,8 @@ export class NgoUsersService {
     return createdNgoUser.save();
   }
 
-  async findByCredentials(ngoName: string, name: string): Promise<NgoUser | null> {
-    return this.ngoUserModel.findOne({ ngoName, name }).exec();
+  async findByCredentials(ngoName: string, email: string): Promise<NgoUser | null> {
+    return this.ngoUserModel.findOne({ ngoName, email }).exec();
   }
 
   async findAll(): Promise<NgoUser[]> {

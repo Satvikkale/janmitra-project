@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Logger, UseGuards, Request, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Logger, UseGuards, Request, NotFoundException, Param } from '@nestjs/common';
 import { OrgsService } from './orgs.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -36,6 +36,22 @@ export class OrgsController {
       pending: pending.map((ngo) => this.transformNgoForAdmin(ngo)),
       verified: verified.map((ngo) => this.transformNgoForAdmin(ngo)),
     };
+  }
+
+  @Get('paid-organizations')
+  @UseGuards(JwtAuthGuard)
+  async getPaidOrganizations() {
+    return this.orgs.getPaidOrganizations();
+  }
+
+  @Post(':orgId/bookings')
+  @UseGuards(JwtAuthGuard)
+  async bookPaidOrganization(
+    @Param('orgId') orgId: string,
+    @Request() req: any,
+    @Body() body: any,
+  ) {
+    return this.orgs.createPaidOrganizationBooking(orgId, req.user.sub, body);
   }
 
   @Post('verify-ngo')

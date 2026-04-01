@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../users/user.schema';
 import { Org, OrgSchema } from '../orgs/orgs.schema';
 import { NgoUsersModule } from '../ngo-users/ngo-users.module';
+import { OrganizationUsersModule } from '../organization-users/organization-users.module';
 import { ConfigModule } from '@nestjs/config/dist/config.module';
 
 @Global()
@@ -24,6 +25,7 @@ import { ConfigModule } from '@nestjs/config/dist/config.module';
       { name: Org.name, schema: OrgSchema },
     ]),
     NgoUsersModule,
+    OrganizationUsersModule,
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
