@@ -1,7 +1,11 @@
-# compiled output
-/dist
-/node_modules
-/build
+# ================================
+# NestJS API .gitignore
+# ================================
+
+# Compiled output
+dist
+build
+node_modules
 
 # Logs
 logs
@@ -14,13 +18,14 @@ lerna-debug.log*
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Tests
-/coverage
-/.nyc_output
+coverage
+.nyc_output
 
 # IDEs and editors
-/.idea
+.idea
 .project
 .classpath
 .c9/
@@ -35,9 +40,12 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Environment files
+.env
+.env.*
+!.env.example
 
-
-# temp directory
+# Temp directory
 .temp
 .tmp
 
@@ -47,7 +55,20 @@ pids
 *.seed
 *.pid.lock
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
+# Diagnostic reports
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-.env
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+.eslintcache
+
+# Uploads (local dev uploads)
+uploads/
+temp-uploads/
+uploaded-images/
+
+# Database (local SQLite if used)
+*.sqlite
+*.db

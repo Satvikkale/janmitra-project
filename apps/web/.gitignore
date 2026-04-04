@@ -1,3 +1,67 @@
-/node_modules
-.next/
+# ================================
+# Next.js Web App .gitignore
+# ================================
+
+# Dependencies
+node_modules
+
+# Next.js build output
+.next
+out
+build
+
+# Production
+dist
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
 .env
+.env.*
+!.env.example
+!.env.local.example
+
+# Testing
+coverage
+.nyc_output
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Cache
+.cache
+.eslintcache
+
+# IDE
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+
+# PWA files
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+**/public/sw.js.map
+**/public/workbox-*.js.map
+
+# Storybook (if used)
+storybook-static
+
+# Sentry (if used)
+.sentryclirc
