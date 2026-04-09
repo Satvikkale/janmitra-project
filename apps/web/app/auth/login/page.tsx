@@ -12,7 +12,7 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [availableNgos, setAvailableNgos] = useState<Array<{ name: string; id: string }>>([]);
-    const { setIsLoggedIn } = useAuth();
+    const { setIsLoggedIn, checkAuthStatus } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -76,25 +76,26 @@ export default function Login() {
             }
 
             setTokens(j.accessToken, j.refreshToken);
-            setIsLoggedIn(true);
             if (globalThis.window !== undefined) {
                 localStorage.setItem('userData', JSON.stringify(j.user || {}));
                 localStorage.setItem('userType', inferredUserType);
             }
+            setIsLoggedIn(true);
+            checkAuthStatus();
 
             if (inferredUserType === 'admin') {
-                router.push('/admin-dashboard');
+                router.replace('/admin-dashboard');
             } else if (inferredUserType === 'organization') {
-                router.push('/org-dashboard');
+                router.replace('/org-dashboard');
             } else if (inferredUserType === 'org-user') {
-                router.push('/org-user-dashboard');
+                router.replace('/org-user-dashboard');
             } else if (inferredUserType === 'ngo' && j.user.isVerified) {
-                router.push('/ngo-dashboard');
+                router.replace('/ngo-dashboard');
             } else if (inferredUserType === 'ngo' && !j.user.isVerified) {
                 alert('Your NGO account is pending approval. Please wait for verification.');
-                router.push('/auth/login');
+                router.replace('/auth/login');
             } else if (inferredUserType === 'ngo-user') {
-                router.push('/ngo-users');
+                router.replace('/ngo-users');
             }
         } catch (e: unknown) {
             const error = e as Error;

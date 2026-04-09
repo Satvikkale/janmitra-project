@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 const API = (require('expo-constants').default.expoConfig?.extra as any).apiBase as string;
 
@@ -17,6 +17,27 @@ const C = createContext<Ctx>({} as any);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string|undefined>();
   const [user, setUser] = useState<any>();
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const storedAccessToken = await SecureStore.getItemAsync('jm_access');
+        if (!mounted || !storedAccessToken) {
+          return;
+        }
+
+        setAccessToken(storedAccessToken);
+      } catch (error) {
+        console.error('Failed to restore access token:', error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const login = async (identifier: string, password: string) => {
     try {

@@ -9,6 +9,9 @@ import { UsersService } from '../users/users.service';
 import { Society } from '../societies/society.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrgComplaintsService } from '../org-complaints/org-complaints.service';
+import { NgoUsersService } from '../ngo-users/ngo-users.service';
+import { OrganizationUsersService } from '../organization-users/organization-users.service';
+import { Org } from '../orgs/orgs.schema';
 
 @Injectable()
 export class ComplaintsService {
@@ -17,12 +20,43 @@ export class ComplaintsService {
     @InjectModel(Complaint.name) private complaintModel: Model<Complaint>,
     @InjectModel(ComplaintEvent.name) private eventModel: Model<ComplaintEvent>,
     @InjectModel(Society.name) private readonly societyModel: Model<Society>,
+    @InjectModel(Org.name) private readonly orgModel: Model<Org>,
     private routing: RoutingService,
     private events: EventsGateway,
     private readonly users: UsersService,
+    private readonly ngoUsers: NgoUsersService,
+    private readonly organizationUsers: OrganizationUsersService,
     private readonly notifications: NotificationsService,
     private readonly orgComplaints: OrgComplaintsService,
   ) {}
+
+  private async resolveActorDisplayName(actorId?: string) {
+    const normalizedActorId = String(actorId || '').trim();
+    if (!normalizedActorId) {
+      return 'System';
+    }
+
+    if (normalizedActorId === 'u-dev-1') {
+      return 'System';
+    }
+
+    const [residentUser, ngoUser, organizationUser, org] = await Promise.all([
+      this.users.getById(normalizedActorId),
+      this.ngoUsers.findById(normalizedActorId),
+      this.organizationUsers.findById(normalizedActorId),
+      this.orgModel.findById(normalizedActorId).lean(),
+    ]);
+
+    return (
+      residentUser?.name ||
+      ngoUser?.name ||
+      organizationUser?.name ||
+      org?.contactPersonName ||
+      org?.businessName ||
+      org?.name ||
+      normalizedActorId
+    );
+  }
 
   private canUpdateProgress(
     complaint: Complaint,
@@ -369,37 +403,40 @@ export class ComplaintsService {
 
   async getProgress(id: string) {
     const events = await this.eventModel.find({ complaintId: id }).sort({ createdAt: 1 }).lean();
-    return events
-      .filter((event: any) => ['assigned', 'status_changed', 'comment', 'note'].includes(event.type))
-      .map((event: any) => {
-        let description = 'Internal note added';
+    return Promise.all(
+      events
+        .filter((event: any) => ['assigned', 'status_changed', 'comment', 'note'].includes(event.type))
+        .map(async (event: any) => {
+          let description = 'Internal note added';
 
-        if (event.type === 'assigned') {
-          description = 'Complaint assigned';
-          if (event.payload?.assignedTo) {
-            description += ` to ${event.payload.assignedTo}`;
+          if (event.type === 'assigned') {
+            description = 'Complaint assigned';
+            if (event.payload?.assignedTo) {
+              const assignedToName = await this.resolveActorDisplayName(event.payload.assignedTo);
+              description += ` to ${assignedToName}`;
+            }
+          } else if (event.type === 'status_changed') {
+            const status = event.payload?.status || 'updated';
+            description = `Status changed to ${status}`;
+            if (event.payload?.note) {
+              description += `: ${event.payload.note}`;
+            }
+          } else if (event.type === 'comment') {
+            description = event.payload?.message || 'Comment added';
+          } else if (event.payload?.pinnedNote || event.payload?.reason) {
+            description = event.payload?.pinnedNote || event.payload?.reason;
           }
-        } else if (event.type === 'status_changed') {
-          const status = event.payload?.status || 'updated';
-          description = `Status changed to ${status}`;
-          if (event.payload?.note) {
-            description += `: ${event.payload.note}`;
-          }
-        } else if (event.type === 'comment') {
-          description = event.payload?.message || 'Comment added';
-        } else if (event.payload?.pinnedNote || event.payload?.reason) {
-          description = event.payload?.pinnedNote || event.payload?.reason;
-        }
 
-        return {
-          _id: String(event._id),
-          date: event.createdAt,
-          description,
-          photos: Array.isArray(event.payload?.photos) ? event.payload.photos : [],
-          updatedBy: event.actorId,
-          updatedByName: event.actorId,
-        };
-      });
+          return {
+            _id: String(event._id),
+            date: event.createdAt,
+            description,
+            photos: Array.isArray(event.payload?.photos) ? event.payload.photos : [],
+            updatedBy: event.actorId,
+            updatedByName: await this.resolveActorDisplayName(event.actorId),
+          };
+        }),
+    );
   }
 
   async updateStatus(id: string, dto: UpdateStatusDto) {

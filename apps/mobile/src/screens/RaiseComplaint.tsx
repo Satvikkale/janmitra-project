@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { useLocalAuth } from '../auth/useLocalAuth';
 import { apiFetch } from '../api';
 
@@ -36,6 +40,47 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
   const [photo, setPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'pending' | 'granted' | 'denied' | 'fetching' | 'acquired' | 'error'>('pending');
+
+  // Request location permission on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          setLocationStatus('granted');
+        } else {
+          setLocationStatus('denied');
+        }
+      } catch (err) {
+        console.error('Location permission error:', err);
+        setLocationStatus('error');
+      }
+    })();
+  }, []);
+
+  // Capture current location
+  async function captureLocation() {
+    try {
+      // Check permission again in case it changed
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationStatus('denied');
+        return;
+      }
+      setLocationStatus('fetching');
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      setLocationStatus('acquired');
+      console.log('Location captured:', loc.coords.latitude, loc.coords.longitude);
+    } catch (err) {
+      console.error('Error getting location:', err);
+      setLocationStatus('error');
+    }
+  }
 
   async function requestPermissions() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -56,7 +101,7 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -64,6 +109,8 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
 
       if (!result.canceled && result.assets[0]) {
         setPhoto(result.assets[0].uri);
+        // Capture location when photo is taken
+        captureLocation();
       }
     } catch (error: any) {
       console.error('Camera error:', error);
@@ -74,7 +121,7 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
   async function pickFromGallery() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -82,6 +129,8 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
 
       if (!result.canceled && result.assets[0]) {
         setPhoto(result.assets[0].uri);
+        // Capture location when photo is selected
+        captureLocation();
       }
     } catch (error: any) {
       console.error('Gallery error:', error);
@@ -96,6 +145,12 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
     }
 
     try {
+      const token = accessToken || await SecureStore.getItemAsync('jm_access');
+      if (!token) {
+        Alert.alert('Session expired', 'Please log in again before submitting a complaint.');
+        return;
+      }
+
       setUploading(true);
       setAnalyzing(true);
 
@@ -114,13 +169,20 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
         type,
       } as any);
 
+      // Append location data if available
+      if (location) {
+        formData.append('latitude', location.lat.toString());
+        formData.append('longitude', location.lng.toString());
+      }
+
       // Submit complaint
+      const API_BASE = (Constants.expoConfig?.extra as any)?.apiBase || 'http://10.41.35.168:4000';
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_BASE || 'http://10.65.211.168:4000'}/v1/complaints`,
+        `${API_BASE}/v1/complaints`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
           body: formData,
         }
@@ -214,11 +276,54 @@ export default function RaiseComplaint({ onComplaintRaised, onBack }: RaiseCompl
         ) : (
           <View style={styles.previewContainer}>
             <Image source={{ uri: photo }} style={styles.photoPreview} resizeMode="cover" />
+
+            {/* Location Status Indicator */}
+            <View style={styles.locationContainer}>
+              {locationStatus === 'fetching' && (
+                <View style={styles.locationRow}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.locationText}>Fetching location...</Text>
+                </View>
+              )}
+              {locationStatus === 'acquired' && location && (
+                <View style={styles.locationRow}>
+                  <Ionicons name="location" size={18} color={COLORS.success} style={{ marginRight: 6 }} />
+                  <Text style={[styles.locationText, { color: COLORS.success }]}>
+                    Location captured: {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+                  </Text>
+                </View>
+              )}
+              {locationStatus === 'denied' && (
+                <TouchableOpacity style={styles.locationRow} onPress={() => {
+                  Alert.alert(
+                    'Location Permission',
+                    'Location access helps us pinpoint the issue. Please enable it in your device settings.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                    ]
+                  );
+                }}>
+                  <Ionicons name="location-outline" size={18} color={COLORS.danger} style={{ marginRight: 6 }} />
+                  <Text style={[styles.locationText, { color: COLORS.danger }]}>
+                    Location denied — Tap to enable
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {locationStatus === 'error' && (
+                <TouchableOpacity style={styles.locationRow} onPress={captureLocation}>
+                  <Ionicons name="warning-outline" size={18} color="#EF6C00" style={{ marginRight: 6 }} />
+                  <Text style={[styles.locationText, { color: '#EF6C00' }]}>
+                    Location error — Tap to retry
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.retakeButton}
-                onPress={() => setPhoto(null)}
+                onPress={() => { setPhoto(null); setLocation(null); setLocationStatus('granted'); }}
                 disabled={uploading}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -383,6 +488,24 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     backgroundColor: COLORS.border,
+  },
+  locationContainer: {
+    marginBottom: 12,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  locationText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
   },
   actionButtons: {
     flexDirection: 'row',

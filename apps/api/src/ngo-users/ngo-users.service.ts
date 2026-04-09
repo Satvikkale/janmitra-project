@@ -20,8 +20,15 @@ export class NgoUsersService {
     mobileNo: string;
     password: string;
   }): Promise<NgoUser> {
+    const ngoName = createNgoUserDto.ngoName?.trim();
+    const email = createNgoUserDto.email?.trim().toLowerCase();
+
+    if (!ngoName || !email) {
+      throw new BadRequestException('NGO name and email are required');
+    }
+
     const existingNgo = await this.orgModel.findOne({
-      name: createNgoUserDto.ngoName,
+      name: ngoName,
       type: 'NGO',
       isVerified: true,
     }).exec();
@@ -35,13 +42,22 @@ export class NgoUsersService {
     const hashedPassword = await bcrypt.hash(createNgoUserDto.password, 10);
     const createdNgoUser = new this.ngoUserModel({
       ...createNgoUserDto,
+      ngoName,
+      email,
       password: hashedPassword,
     });
     return createdNgoUser.save();
   }
 
   async findByCredentials(ngoName: string, email: string): Promise<NgoUser | null> {
-    return this.ngoUserModel.findOne({ ngoName, email }).exec();
+    const normalizedNgoName = ngoName?.trim();
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    if (!normalizedNgoName || !normalizedEmail) {
+      return null;
+    }
+
+    return this.ngoUserModel.findOne({ ngoName: normalizedNgoName, email: normalizedEmail }).exec();
   }
 
   async findAll(): Promise<NgoUser[]> {

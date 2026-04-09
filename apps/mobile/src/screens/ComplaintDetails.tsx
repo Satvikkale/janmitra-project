@@ -34,6 +34,15 @@ export default function ComplaintDetails({ complaintId, onBack }: ComplaintDetai
     }
   };
 
+  const formatLocation = (location: any): string => {
+    if (!location) return 'Not specified';
+    if (typeof location === 'string') return location;
+    if (typeof location === 'object' && location.lat != null && location.lng != null) {
+      return `${location.lat}, ${location.lng}`;
+    }
+    return 'Not specified';
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -130,7 +139,7 @@ export default function ComplaintDetails({ complaintId, onBack }: ComplaintDetai
 
           <View style={styles.section}>
             <Text style={styles.label}>Location:</Text>
-            <Text style={styles.value}>{complaint.location || 'Not specified'}</Text>
+            <Text style={styles.value}>{formatLocation(complaint.location)}</Text>
           </View>
 
           <View style={styles.section}>

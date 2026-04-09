@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { API, setTokens } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('../../../components/MapPicker'), { 
+  ssr: false, 
+  loading: () => <p className="text-sm text-slate-500">Loading Map...</p> 
+});
 
 export default function Register() {
   const [userType, setUserType] = useState<'ngo-user' | 'ngo' | 'organization' | 'org-user'>('ngo-user');
@@ -39,6 +45,7 @@ export default function Register() {
     registrationNumber: '',
     establishedYear: 2024,
     website: '',
+    location: null as { lat: number, lng: number } | null,
   });
 
   // Organization (Owner) specific
@@ -164,6 +171,10 @@ export default function Register() {
       }
       if (!ngoInfo.city.trim()) {
         setErr('City is required');
+        return false;
+      }
+      if (!ngoInfo.location) {
+        setErr('Please select your NGO building location on the map');
         return false;
       }
     } else if (userType === 'organization') {
@@ -558,6 +569,13 @@ export default function Register() {
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-slate-900 placeholder:text-slate-400 transition-all"
                     />
                   </div>
+                </div>
+                
+                <div className="pt-2 border-t border-slate-200">
+                  <label className="block text-sm font-medium text-slate-800 mb-3">Geographic Location</label>
+                  <MapPicker 
+                    onLocationSelect={(lat: number, lng: number) => setNgoInfo({ ...ngoInfo, location: { lat, lng } })} 
+                  />
                 </div>
               </>
             )}

@@ -88,13 +88,25 @@ export class ComplaintsController {
         this.logger.error('AI classification failed', err);
       }
 
-      /* 3️⃣ Persist complaint (ALWAYS) */
+      /* 3️⃣ Parse location from form fields */
+      let location: { lat: number; lng: number } | undefined;
+      if (req.body?.latitude && req.body?.longitude) {
+        const lat = parseFloat(req.body.latitude);
+        const lng = parseFloat(req.body.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          location = { lat, lng };
+          this.logger.log(`Location received: ${lat}, ${lng}`);
+        }
+      }
+
+      /* 4️⃣ Persist complaint (ALWAYS) */
       const complaint = await this.svc.create({
         reporterId: req.user.sub,
         societyId,
         category: aiAnalysis.category,
         description: aiAnalysis.description,
         media: [photoUrl],
+        location,
       });
 
       return {

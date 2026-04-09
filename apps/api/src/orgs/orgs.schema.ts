@@ -60,6 +60,13 @@ export class Org extends Document {
   @Prop({ type: [String], default: [] }) roles?: string[];
   @Prop() workingHours?: string;
   @Prop() description?: string;
+  @Prop({
+    type: { type: String, enum: ['Point'], required: false },
+    coordinates: { type: [Number], required: false }
+  })
+  location?: { type: 'Point'; coordinates: number[] };
+  @Prop({ default: 10 })
+  serviceRadiusKm?: number;
 
   // Organization business specific fields
   @Prop() businessName?: string;
@@ -72,6 +79,7 @@ export class Org extends Document {
 }
 export const OrgSchema = SchemaFactory.createForClass(Org);
 OrgSchema.index({ jurisdiction: '2dsphere' });
+OrgSchema.index({ location: '2dsphere' });
 OrgSchema.index({ city: 1, type: 1 });
 OrgSchema.index({ type: 1 });
 OrgSchema.index({ contactEmail: 1 }, { sparse: true });

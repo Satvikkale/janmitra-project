@@ -55,12 +55,27 @@ export class AuthService {
     mobileNo: string;
     password: string;
   }) {
-    const existingUser = await this.ngoUsersService.findByCredentials(dto.ngoName, dto.email);
+    const ngoName = dto.ngoName?.trim();
+    const email = dto.email?.trim().toLowerCase();
+
+    if (!ngoName) {
+      throw new BadRequestException('NGO name is required');
+    }
+
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const existingUser = await this.ngoUsersService.findByCredentials(ngoName, email);
     if (existingUser) {
       throw new BadRequestException('NGO user already exists with this NGO name and email');
     }
 
-    const ngoUser = await this.ngoUsersService.create(dto);
+    const ngoUser = await this.ngoUsersService.create({
+      ...dto,
+      ngoName,
+      email,
+    });
     const tokens = this.signPair(String(ngoUser.id), ['ngo-user']);
 
     return {

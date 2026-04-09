@@ -21,6 +21,7 @@ import ComplaintDetails from './ComplaintDetails';
 import ManageComplaint from './ManageComplaint';
 import AnnouncementsView from './AnnouncementsView';
 import CreateAnnouncement from './CreateAnnouncement';
+import PaidOrganizations from './PaidOrganizations';
 
 type Society = {
   _id: string;
@@ -51,7 +52,7 @@ export default function HeadPending() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'raiseComplaint' | 'myComplaints' | 'societyDashboard' | 'complaintDetails' | 'manageComplaint' | 'announcements' | 'createAnnouncement'>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'raiseComplaint' | 'myComplaints' | 'societyDashboard' | 'complaintDetails' | 'manageComplaint' | 'announcements' | 'createAnnouncement' | 'paidOrganizations'>('dashboard');
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
 
@@ -242,6 +243,15 @@ export default function HeadPending() {
       />
     );
   }
+
+  if (currentScreen === 'paidOrganizations') {
+      return (
+        <PaidOrganizations
+          onBack={() => setCurrentScreen('dashboard')}
+          societyName={society?.name || ''}
+        />
+      );
+    }
 
   // Show Create/Edit Announcement screen
   if (currentScreen === 'createAnnouncement') {
@@ -523,6 +533,29 @@ export default function HeadPending() {
                 </Text>
                 <Text style={{ fontSize: 12, color: COLORS.textSecondary, textAlign: 'center' }}>
                   Create & manage news
+                </Text>
+              </TouchableOpacity>
+
+              {/* Paid Organizations */}
+              <TouchableOpacity
+                style={{
+                  width: '47%',
+                  margin: 6,
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: '#E8F7EF',
+                  alignItems: 'center',
+                  minHeight: 140,
+                  justifyContent: 'center',
+                }}
+                onPress={() => setCurrentScreen('paidOrganizations')}
+              >
+                <Ionicons name="briefcase-outline" size={40} color="#1B8A5A" style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4, textAlign: 'center' }}>
+                  Paid Organization
+                </Text>
+                <Text style={{ fontSize: 12, color: COLORS.textSecondary, textAlign: 'center' }}>
+                  Book services for society work
                 </Text>
               </TouchableOpacity>
 

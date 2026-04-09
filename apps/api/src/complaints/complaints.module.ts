@@ -13,6 +13,9 @@ import { UploadsModule } from 'src/uploads/uploads.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrgComplaintsModule } from '../org-complaints/org-complaints.module';
+import { NgoUsersModule } from '../ngo-users/ngo-users.module';
+import { OrganizationUsersModule } from '../organization-users/organization-users.module';
+import { Org, OrgSchema } from '../orgs/orgs.schema';
 
 @Module({
   imports: [
@@ -21,8 +24,11 @@ import { OrgComplaintsModule } from '../org-complaints/org-complaints.module';
       { name: ComplaintEvent.name, schema: ComplaintEventSchema },
       { name: SocietyMembership.name, schema: SocietyMembershipSchema },
       { name: Society.name, schema: SocietySchema },
+      { name: Org.name, schema: OrgSchema },
     ]),
     UsersModule,
+    NgoUsersModule,
+    OrganizationUsersModule,
     RealtimeModule,
     RoutingModule,
     AIModule,

@@ -72,6 +72,17 @@ export async function apiFetch(path: string, init?: RequestInit) {
     if (globalThis.window) globalThis.window.location.href = '/auth/login';
     throw new Error('Session expired');
   }
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const errText = await res.text();
+    try {
+      const errJson = JSON.parse(errText);
+      const message = Array.isArray(errJson?.message)
+        ? errJson.message.join(', ')
+        : errJson?.message;
+      throw new Error(message || errText);
+    } catch {
+      throw new Error(errText || `Request failed with status ${res.status}`);
+    }
+  }
   return res.json();
 }

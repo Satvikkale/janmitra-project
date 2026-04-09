@@ -114,6 +114,7 @@ export default function NgoDashboard() {
   });
   const [employeeFormData, setEmployeeFormData] = useState({
     name: '',
+    email: '',
     position: '',
     mobileNo: '',
     password: ''
@@ -409,7 +410,7 @@ export default function NgoDashboard() {
     try {
       const employeeData = {
         ...employeeFormData,
-        ngoName: profile?.name
+        ngoName: profile?.name?.trim()
       };
       await apiFetch('/v1/auth/register-ngo-user', {
         method: 'POST',
@@ -417,6 +418,7 @@ export default function NgoDashboard() {
       });
       setEmployeeFormData({
         name: '',
+        email: '',
         position: '',
         mobileNo: '',
         password: ''
@@ -426,7 +428,7 @@ export default function NgoDashboard() {
       setError(null);
     } catch (err: any) {
       console.error('Error creating employee:', err);
-      setError('Failed to create employee');
+      setError(err?.message || 'Failed to create employee');
     }
   };
 
@@ -1049,6 +1051,14 @@ export default function NgoDashboard() {
                       placeholder="Name"
                       value={employeeFormData.name}
                       onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email Address"
+                      value={employeeFormData.email}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, email: e.target.value })}
                       className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                     <input

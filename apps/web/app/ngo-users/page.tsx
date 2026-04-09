@@ -178,7 +178,7 @@ export default function NGOUsers() {
   const fetchPaidOrganizations = async () => {
     try {
       setLoadingOrganizations(true);
-      const orgsData = await apiFetch('/v1/organizations?role=organization');
+      const orgsData = await apiFetch('/v1/orgs/paid-organizations');
       setPaidOrganizations(orgsData.map((org: any) => ({
         id: org._id || org.id,
         name: org.name || org.businessName || 'Organization',

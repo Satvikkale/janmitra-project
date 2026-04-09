@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,19 +11,24 @@ type AdminDashboardLayoutProps = {
 export default function AdminDashboardLayout({ children }: AdminDashboardLayoutProps) {
   const router = useRouter();
   const { isLoggedIn, userType } = useAuth();
+  const [checked, setChecked] = useState(false);
+
+  const isAdmin = userType === 'admin' || userType === 'platform_admin';
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      router.replace('/auth/login');
-      return;
-    }
+    // Wait a tick to allow auth state to settle after login redirect
+    const timer = setTimeout(() => {
+      if (!isLoggedIn) {
+        router.replace('/auth/login');
+      } else if (!isAdmin) {
+        router.replace('/');
+      }
+      setChecked(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isLoggedIn, isAdmin, router]);
 
-    if (userType !== 'admin' && userType !== 'platform_admin') {
-      router.replace('/');
-    }
-  }, [isLoggedIn, userType, router]);
-
-  if (!isLoggedIn || (userType !== 'admin' && userType !== 'platform_admin')) {
+  if (!checked || !isLoggedIn || !isAdmin) {
     return null;
   }
 
