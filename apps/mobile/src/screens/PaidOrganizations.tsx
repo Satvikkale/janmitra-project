@@ -229,7 +229,7 @@ export default function PaidOrganizations({ onBack, societyName }: PaidOrganizat
               />
               <TextInput
                 style={[styles.input, styles.notesInput]}
-                placeholder="Additional notes (optional)"
+                placeholder="Enter your Address, (example: plot no/building no 123, near XYZ, city name)"
                 value={notes}
                 onChangeText={setNotes}
                 multiline

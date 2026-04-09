@@ -28,7 +28,7 @@ interface Organization {
 
 interface OrgComplaint {
   _id: string;
-  complaintId: string;
+  complaintId?: string;
   orgId: string;
   status: 'pending' | 'assigned' | 'rejected' | 'resolved';
   assignedToUserId?: string;
@@ -147,7 +147,7 @@ export default function OrgDashboard() {
         const employeeRows = Array.isArray(employeesData) ? employeesData : [];
 
         setEmployees(employeeRows.map((emp: EmployeeResponse) => ({
-          id: emp._id || emp.id,
+          id: String(emp._id || emp.id || ''),
           name: emp.name,
           email: emp.email,
           position: emp.position || 'Employee',
@@ -547,7 +547,7 @@ export default function OrgDashboard() {
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h3 className="font-semibold text-slate-900">
-                              Complaint #{String(complaint.complaintId || complaint._id).slice(0, 8)}
+                              Complaint raised by {String(complaint.reporterName || complaint._id).slice(0, 8)}
                             </h3>
                             <p className="text-slate-600 text-sm mt-1">
                               {complaint.complaintCategory} | From: {complaint.reporterSociety}
@@ -967,7 +967,7 @@ export default function OrgDashboard() {
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-slate-900">
-                Complaint #{selectedComplaint.complaintId.slice(0, 8)}
+                Complaint #{String(selectedComplaint.complaintId || selectedComplaint._id).slice(0, 8)}
               </h3>
               <button
                 onClick={() => setShowDetailModal(false)}

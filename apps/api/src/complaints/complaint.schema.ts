@@ -19,7 +19,7 @@ export class Complaint {
   @Prop([String]) media?: string[];
   @Prop({ type: { lat: Number, lng: Number } }) location?: { lat: number; lng: number };
   @Prop({ default: 'open', index: true }) status: 'open'|'assigned'|'in_progress'|'resolved'|'closed';
-  @Prop({ default: 'med' }) priority: 'low'|'med'|'high';
+  @Prop({ default: 'high' }) priority: 'low'|'med'|'high';
   @Prop() severityScore?: number;
   @Prop() assignedTo?: string;
   @Prop({ type: { level: String, dueAt: Date } }) sla?: { level: string; dueAt: Date };

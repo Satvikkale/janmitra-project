@@ -170,7 +170,7 @@ export default function Login() {
                                     : 'text-slate-600 hover:text-slate-900'
                             }`}
                         >
-                            Organization
+                            Org.
                         </button>
                         <button
                             type="button"
@@ -218,14 +218,14 @@ export default function Login() {
                                 name="identifier"
                                 placeholder={
                                     userType === 'admin'
-                                        ? 'Enter email or phone'
+                                        ? 'Enter email'
                                         : userType === 'ngo-user'
                                         ? 'Enter your email'
                                         : userType === 'organization'
                                         ? 'Enter owner email'
                                         : userType === 'org-user'
                                         ? 'Enter your email'
-                                        : 'Enter contact email or phone'
+                                        : 'Enter contact email'
                                 }
                                 value={formData.identifier}
                                 onChange={handleChange}

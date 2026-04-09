@@ -40,6 +40,21 @@ export class OrgComplaintsController {
     return null;
   }
 
+  private resolveEffectiveOrgId(
+    req: any,
+    roles: { isAdmin: boolean; isOrganization: boolean; isOrgUser: boolean },
+  ): string | null {
+    const requestOrgId = this.resolveOrgId(req);
+    if (requestOrgId) return requestOrgId;
+
+    // For direct organization logins, JWT sub is the organization id.
+    if (roles.isOrganization && req?.user?.sub) {
+      return String(req.user.sub);
+    }
+
+    return null;
+  }
+
   /**
    * Create a new org complaint (internal use - called after complaint creation)
    */
@@ -105,7 +120,7 @@ export class OrgComplaintsController {
   @Get(':complaintId')
   async getOrgComplaint(@Param('complaintId') complaintId: string, @Req() req?: any) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveOrgId(req);
+    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
 
     const complaint = await this.orgComplaintsService.getOrgComplaintById(complaintId);
 
@@ -127,7 +142,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveOrgId(req);
+    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can assign complaints');
@@ -156,7 +171,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveOrgId(req);
+    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can reject complaints');
@@ -185,7 +200,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveOrgId(req);
+    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can update complaint status');
