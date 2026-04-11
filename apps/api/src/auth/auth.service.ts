@@ -34,7 +34,7 @@ export class AuthService {
       const existing = await this.users.findOne({ $or: [{ email }, { phone }] }).lean();
       if (existing) throw new BadRequestException('User already exists');
       const passwordHash = await argon2.hash(password);
-      const u = await this.users.create({ name, email, phone, passwordHash, roles: ['admin'] });
+      const u = await this.users.create({ name, email, phone, passwordHash, roles: ['resident'] });
       const tokens = this.signPair(String(u._id), u.roles);
       this.logger.log(`User registered: ${u._id}`);
       return { user: this.publicUser(u), ...tokens };

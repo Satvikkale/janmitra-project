@@ -6,6 +6,7 @@ import { OrgComplaint, OrgComplaintSchema } from './org-complaints.schema';
 import { UsersModule } from '../users/users.module';
 import { SocietyMembership, SocietyMembershipSchema } from '../societies/membership.schema';
 import { Society, SocietySchema } from '../societies/society.schema';
+import { OrganizationUsersModule } from '../organization-users/organization-users.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Society, SocietySchema } from '../societies/society.schema';
       { name: Society.name, schema: SocietySchema },
     ]),
     UsersModule,
+    OrganizationUsersModule,
   ],
   controllers: [OrgComplaintsController],
   providers: [OrgComplaintsService],

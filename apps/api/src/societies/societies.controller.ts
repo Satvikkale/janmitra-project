@@ -20,6 +20,11 @@ export class SocietiesController {
     @InjectModel(User.name) private user: Model<User>,
   ) {}
 
+  private hasAdminAccess(req: any): boolean {
+    const roles: string[] = Array.isArray(req.platform?.roles) ? req.platform.roles : [];
+    return roles.includes('platform_admin') || roles.includes('admin');
+  }
+
   /**
    * List societies, optionally filtered by name
    * Public endpoint - shows only approved societies
@@ -32,8 +37,8 @@ export class SocietiesController {
       const filter: any = {};
       if (q) filter.name = { $regex: q, $options: 'i' };
       
-      // Check if user is platform_admin for includePending
-      const isAdmin = req.platform?.roles?.includes('platform_admin');
+      // Check if user is admin for includePending
+      const isAdmin = this.hasAdminAccess(req);
       
       if (includePending === 'true' && isAdmin) {
         // Admin can see all societies including pending
@@ -145,7 +150,7 @@ export class SocietiesController {
       if (!id) throw new Error('Society ID is required');
       
       const soc = await this.soc.findById(id).lean();
-      const isAdmin = req.platform?.roles?.includes('platform_admin');
+      const isAdmin = this.hasAdminAccess(req);
       if (!isAdmin && soc?.headUserSub !== req.user.sub) {
         this.logger.warn(`User ${req.user.sub} is not head of society ${id}`);
         return [];
@@ -212,7 +217,7 @@ export class SocietiesController {
   @Post(':id/approve')
   async approveSociety(@Req() req: any, @Param('id') id: string) {
     try {
-      if (!req.platform?.roles?.includes('platform_admin')) throw new Error('Forbidden');
+      if (!this.hasAdminAccess(req)) throw new Error('Forbidden');
       const soc = await this.soc.findById(id);
       if (!soc) throw new Error('Society not found');
       soc.status = 'approved';
@@ -246,7 +251,7 @@ export class SocietiesController {
   @Post(':id/reject')
   async rejectSociety(@Req() req: any, @Param('id') id: string, @Body() body: { reason?: string }) {
     try {
-      if (!req.platform?.roles?.includes('platform_admin')) throw new Error('Forbidden');
+      if (!this.hasAdminAccess(req)) throw new Error('Forbidden');
       const soc = await this.soc.findById(id);
       if (!soc) throw new Error('Society not found');
       soc.status = 'rejected';

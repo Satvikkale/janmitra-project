@@ -56,6 +56,7 @@ export class OrgComplaintsService {
     filters?: {
       status?: string;
       sourceType?: 'complaint' | 'booking';
+      assignedToUserId?: string;
       skip?: number;
       limit?: number;
     },
@@ -72,6 +73,10 @@ export class OrgComplaintsService {
 
     if (filters?.status) {
       query.status = filters.status;
+    }
+
+    if (filters?.assignedToUserId) {
+      query.assignedToUserId = filters.assignedToUserId;
     }
 
     const skip = filters?.skip || 0;

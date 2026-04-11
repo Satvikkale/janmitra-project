@@ -15,13 +15,17 @@ import { OrgComplaintsService } from './org-complaints.service.js';
 import { AssignComplaintDto, CreateOrgComplaintDto, RejectComplaintDto, UpdateOrgComplaintStatusDto } from './dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformUserGuard } from '../auth/platform-user.guard';
+import { OrganizationUsersService } from '../organization-users/organization-users.service';
 
 @UseGuards(JwtAuthGuard, PlatformUserGuard)
 @Controller('org-complaints')
 export class OrgComplaintsController {
   private readonly logger = new Logger(OrgComplaintsController.name);
 
-  constructor(private readonly orgComplaintsService: OrgComplaintsService) {}
+  constructor(
+    private readonly orgComplaintsService: OrgComplaintsService,
+    private readonly organizationUsersService: OrganizationUsersService,
+  ) {}
 
   private resolveRoleFlags(req: any) {
     const platformRoles: string[] = Array.isArray(req.platform?.roles) ? req.platform.roles : [];
@@ -40,16 +44,24 @@ export class OrgComplaintsController {
     return null;
   }
 
-  private resolveEffectiveOrgId(
+  private async resolveEffectiveOrgId(
     req: any,
     roles: { isAdmin: boolean; isOrganization: boolean; isOrgUser: boolean },
-  ): string | null {
+  ): Promise<string | null> {
     const requestOrgId = this.resolveOrgId(req);
     if (requestOrgId) return requestOrgId;
 
     // For direct organization logins, JWT sub is the organization id.
     if (roles.isOrganization && req?.user?.sub) {
       return String(req.user.sub);
+    }
+
+    // Org-user tokens may not include orgIds in platform context.
+    if (roles.isOrgUser && req?.user?.sub) {
+      const orgUser = await this.organizationUsersService.findById(String(req.user.sub));
+      if (orgUser?.organizationId) {
+        return String(orgUser.organizationId);
+      }
     }
 
     return null;
@@ -80,6 +92,7 @@ export class OrgComplaintsController {
     @Param('orgId') orgId: string,
     @Query('status') status?: string,
     @Query('sourceType') sourceType?: 'booking' | 'complaint',
+    @Query('assignedToUserId') assignedToUserId?: string,
     @Query('skip') skip?: string,
     @Query('limit') limit?: string,
     @Req() req?: any,
@@ -94,12 +107,8 @@ export class OrgComplaintsController {
 
     let effectiveOrgId = orgId;
     if (!roles.isAdmin) {
-      if (requestOrgId) {
-        effectiveOrgId = requestOrgId;
-      } else if (roles.isOrganization && req?.user?.sub) {
-        // For direct organization logins, JWT sub is the organization id.
-        effectiveOrgId = String(req.user.sub);
-      } else {
+      effectiveOrgId = (await this.resolveEffectiveOrgId(req, roles)) || '';
+      if (!effectiveOrgId) {
         throw new ForbiddenException('Organization context not found in token');
       }
     }
@@ -107,6 +116,7 @@ export class OrgComplaintsController {
     const filters = {
       status: status || undefined,
       sourceType: sourceType || undefined,
+      assignedToUserId: roles.isOrgUser ? req?.user?.sub : assignedToUserId || undefined,
       skip: skip ? parseInt(skip) : 0,
       limit: limit ? parseInt(limit) : 10,
     };
@@ -120,7 +130,7 @@ export class OrgComplaintsController {
   @Get(':complaintId')
   async getOrgComplaint(@Param('complaintId') complaintId: string, @Req() req?: any) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
+    const requestOrgId = await this.resolveEffectiveOrgId(req, roles);
 
     const complaint = await this.orgComplaintsService.getOrgComplaintById(complaintId);
 
@@ -142,7 +152,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
+    const requestOrgId = await this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can assign complaints');
@@ -171,7 +181,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
+    const requestOrgId = await this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can reject complaints');
@@ -200,7 +210,7 @@ export class OrgComplaintsController {
     @Req() req: any,
   ) {
     const roles = this.resolveRoleFlags(req);
-    const requestOrgId = this.resolveEffectiveOrgId(req, roles);
+    const requestOrgId = await this.resolveEffectiveOrgId(req, roles);
 
     if (!roles.isOrganization && !roles.isOrgUser && !roles.isAdmin) {
       throw new ForbiddenException('Only organization staff can update complaint status');

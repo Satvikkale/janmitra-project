@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 interface OrgUserData {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   organizationId: string;
@@ -17,12 +18,19 @@ interface OrgUserData {
 
 interface Complaint {
   _id: string;
-  category: string;
-  description?: string;
-  status: 'open' | 'assigned' | 'in_progress' | 'resolved' | 'closed';
-  priority: 'low' | 'med' | 'high';
-  assignedTo?: string;
+  complaintCategory?: string;
+  complaintDescription?: string;
+  status: 'pending' | 'assigned' | 'rejected' | 'resolved';
+  assignedToUserId?: string;
+  assignedToUserName?: string;
+  reporterName?: string;
+  reporterSociety?: string;
   createdAt: string;
+}
+
+interface OrgComplaintsResponse {
+  data: Complaint[];
+  total: number;
 }
 
 export default function OrgUserDashboard() {
@@ -32,7 +40,7 @@ export default function OrgUserDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'assigned' | 'in_progress' | 'resolved'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'assigned' | 'resolved'>('profile');
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -44,14 +52,12 @@ export default function OrgUserDashboard() {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
 
-  const assignedComplaints = complaints.filter(c => c.status === 'open' || c.status === 'assigned');
-  const inProgressComplaints = complaints.filter(c => c.status === 'in_progress');
-  const resolvedComplaints = complaints.filter(c => c.status === 'resolved' || c.status === 'closed');
+  const assignedComplaints = complaints.filter(c => c.status === 'pending' || c.status === 'assigned');
+  const resolvedComplaints = complaints.filter(c => c.status === 'resolved');
 
   const getFilteredComplaints = () => {
     switch (activeTab) {
       case 'assigned': return assignedComplaints;
-      case 'in_progress': return inProgressComplaints;
       case 'resolved': return resolvedComplaints;
       default: return complaints;
     }
@@ -68,16 +74,30 @@ export default function OrgUserDashboard() {
         }
 
         const data = await apiFetch('/v1/organization-users/me');
-        setUserData(data);
+        const userId = data?.id || data?._id;
+        const organizationId = data?.organizationId;
+
+        if (!userId || !organizationId) {
+          throw new Error('Organization user context is incomplete. Please login again.');
+        }
+
+        const normalizedUserData: OrgUserData = {
+          ...data,
+          id: userId,
+          organizationId,
+        };
+
+        setUserData(normalizedUserData);
         setEditForm({
-          name: data.name,
-          email: data.email,
-          isActive: data.isActive,
-          profilePhoto: data.profilePhoto || ''
+          name: normalizedUserData.name,
+          email: normalizedUserData.email,
+          isActive: normalizedUserData.isActive,
+          profilePhoto: normalizedUserData.profilePhoto || ''
         });
 
-        const complaintsData = await apiFetch(`/v1/complaints?assignedTo=${data.id}`);
-        setComplaints(complaintsData || []);
+        const complaintsData = await apiFetch(`/v1/org-complaints/org/${normalizedUserData.organizationId}?assignedToUserId=${normalizedUserData.id}&limit=100`);
+        const rows = (complaintsData as OrgComplaintsResponse)?.data;
+        setComplaints(Array.isArray(rows) ? rows : []);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch user data');
@@ -180,12 +200,14 @@ export default function OrgUserDashboard() {
 
   const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
     try {
-      await apiFetch(`/v1/complaints/${complaintId}/status`, {
+      await apiFetch(`/v1/org-complaints/${complaintId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus, note: `Updated by org user to ${newStatus}` })
       });
-      const complaintsData = await apiFetch(`/v1/complaints?assignedTo=${userData?.id}`);
-      setComplaints(complaintsData || []);
+      if (!userData) return;
+      const complaintsData = await apiFetch(`/v1/org-complaints/org/${userData.organizationId}?assignedToUserId=${userData.id}&limit=100`);
+      const rows = (complaintsData as OrgComplaintsResponse)?.data;
+      setComplaints(Array.isArray(rows) ? rows : []);
     } catch (err) {
       console.error('Error updating status:', err);
       setError('Failed to update complaint status');
@@ -272,16 +294,6 @@ export default function OrgUserDashboard() {
               }`}
             >
               Assigned ({assignedComplaints.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('in_progress')}
-              className={`px-6 py-4 font-medium text-sm transition-colors ${
-                activeTab === 'in_progress'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              In Progress ({inProgressComplaints.length})
             </button>
             <button
               onClick={() => setActiveTab('resolved')}
@@ -457,16 +469,16 @@ export default function OrgUserDashboard() {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h3 className="font-semibold text-slate-900">{complaint.category}</h3>
-                          <p className="text-slate-600 text-sm mt-1">{complaint.description}</p>
+                          <h3 className="font-semibold text-slate-900">{complaint.complaintCategory || 'Complaint'}</h3>
+                          <p className="text-slate-600 text-sm mt-1">{complaint.complaintDescription || 'No description provided'}</p>
                         </div>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            complaint.status === 'open' || complaint.status === 'assigned'
-                              ? 'bg-red-100 text-red-700'
-                              : complaint.status === 'in_progress'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-green-100 text-green-700'
+                            complaint.status === 'pending' || complaint.status === 'assigned'
+                              ? 'bg-amber-100 text-amber-700'
+                              : complaint.status === 'resolved'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-rose-100 text-rose-700'
                           }`}
                         >
                           {complaint.status}
@@ -478,16 +490,8 @@ export default function OrgUserDashboard() {
                         </span>
                         {activeTab === 'assigned' && (
                           <button
-                            onClick={() => handleStatusUpdate(complaint._id, 'in_progress')}
-                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
-                          >
-                            Start Work
-                          </button>
-                        )}
-                        {activeTab === 'in_progress' && (
-                          <button
                             onClick={() => handleStatusUpdate(complaint._id, 'resolved')}
-                            className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200"
+                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
                           >
                             Mark Resolved
                           </button>

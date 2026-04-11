@@ -1,310 +1,663 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Animated,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const logo = require('../../assets/JanMitra-logo.jpg'); // Full branding with text
+import logo from '../../assets/JanMitra-logo.jpg';
 
 type RouteName = 'Login' | 'RegisterUser' | 'RegisterSociety';
 
 export default function Landing({ onNavigate }: Readonly<{ onNavigate?: (route: RouteName) => void }>) {
   const navigate = onNavigate || (() => {});
+
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideUpAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideUpAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 40,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(buttonAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handlePressIn = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 1,
+      friction: 3,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const primaryBtnScale = useRef(new Animated.Value(1)).current;
+  const secondaryBtnScale = useRef(new Animated.Value(1)).current;
+  const loginBtnScale = useRef(new Animated.Value(1)).current;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header with Logo */}
-      <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <Image source={logo} style={styles.logoLarge} resizeMode="cover" />
-        </View>
-        <Text style={styles.appName}>JanMitra</Text>
-        <Text style={styles.tagline}>AI-Powered Civic Issue Resolution</Text>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0F0F1A', '#1A1A2E', '#16213E']}
+        style={styles.gradient}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header with Logo - Top Position */}
+          <Animated.View
+            style={[
+              styles.headerSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideUpAnim }],
+              },
+            ]}
+          >
+            <View style={styles.headerContainer}>
+              <View style={styles.logoWrapper}>
+                <Image source={logo} style={styles.headerLogo} resizeMode="cover" />
+              </View>
+              <View style={styles.brandInfo}>
+                <Text style={styles.appName}>JanMitra</Text>
+                <Text style={styles.tagline}>Your Voice, Our Mission</Text>
+              </View>
+            </View>
+          </Animated.View>
 
-      {/* Main Hero Section */}
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Transform Your Community</Text>
-        <Text style={styles.subtitle}>Report civic issues with just a photo. AI analyzes, routes to NGOs, and tracks resolution - all in real-time.</Text>
-        
-        <View style={styles.featureGrid}>
-          <View style={styles.featurePill}>
-            <Ionicons name="camera-outline" size={18} color="#7DD3FC" />
-            <Text style={styles.featureText}>Photo-Only</Text>
-          </View>
-          <View style={styles.featurePill}>
-            <Ionicons name="sparkles-outline" size={18} color="#7DD3FC" />
-            <Text style={styles.featureText}>AI Powered</Text>
-          </View>
-          <View style={styles.featurePill}>
-            <Ionicons name="flash-outline" size={18} color="#7DD3FC" />
-            <Text style={styles.featureText}>Real-time</Text>
-          </View>
-        </View>
-      </View>
+          {/* Hero Section - Without Logo */}
+          <Animated.View
+            style={[
+              styles.heroSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            {/* Modern Hero Card */}
+            <View style={styles.heroCard}>
+              <View style={styles.heroCardHeader}>
+                <View style={styles.badge}>
+                  <Ionicons name="sparkles" size={12} color="#FFD700" />
+                  <Text style={styles.badgeText}>AI-Powered</Text>
+                </View>
+              </View>
+              <Text style={styles.heroTitle}>
+                Report. Resolve.{'\n'}Transform.
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Snap a photo of civic issues. Our AI identifies, routes to NGOs, 
+                and tracks resolution in real-time.
+              </Text>
+              
+              {/* Feature Pills */}
+              <View style={styles.featurePills}>
+                <View style={styles.pill}>
+                  <Ionicons name="camera" size={14} color="#00D9FF" />
+                  <Text style={styles.pillText}>Photo Report</Text>
+                </View>
+                <View style={styles.pill}>
+                  <Ionicons name="analytics" size={14} color="#00D9FF" />
+                  <Text style={styles.pillText}>Smart Analysis</Text>
+                </View>
+                <View style={styles.pill}>
+                  <Ionicons name="people" size={14} color="#00D9FF" />
+                  <Text style={styles.pillText}>NGO Network</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
 
-      {/* CTA Buttons */}
-      <View style={styles.ctaSection}>
-        <TouchableOpacity style={styles.primaryCta} onPress={() => navigate('RegisterUser')}>
-          <View style={styles.ctaTitleRow}>
-            <Ionicons name="person-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.primaryCtaText}>Get Started as Resident</Text>
-          </View>
-          <Text style={styles.ctaSubtext}>Report issues in your society</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.secondaryCta} onPress={() => navigate('RegisterSociety')}>
-          <View style={styles.ctaTitleRow}>
-            <Ionicons name="business-outline" size={20} color="#10B981" style={{ marginRight: 8 }} />
-            <Text style={styles.secondaryCtaText}>Register Your Society</Text>
-          </View>
-          <Text style={styles.ctaSubtext}>Become a society head</Text>
-        </TouchableOpacity>
+          {/* CTA Buttons */}
+          <Animated.View
+            style={[
+              styles.ctaContainer,
+              {
+                opacity: buttonAnim,
+                transform: [
+                  {
+                    translateY: buttonAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {/* Primary CTA - Resident */}
+            <Animated.View style={{ transform: [{ scale: primaryBtnScale }] }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigate('RegisterUser')}
+                onPressIn={() => handlePressIn(primaryBtnScale)}
+                onPressOut={() => handlePressOut(primaryBtnScale)}
+              >
+                <LinearGradient
+                  colors={['#00D9FF', '#0099FF', '#6366F1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.primaryButton}
+                >
+                  <View style={styles.buttonContent}>
+                    <View style={styles.iconBox}>
+                      <Ionicons name="person" size={20} color="#0A0E27" />
+                    </View>
+                    <View style={styles.buttonTextContainer}>
+                      <Text style={styles.primaryButtonText}>Join as Resident</Text>
+                      <Text style={styles.buttonSubtext}>Report issues in your area</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#0A0E27" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
 
-        <TouchableOpacity style={styles.linkButton} onPress={() => navigate('Login')}>
-          <View style={styles.linkRow}>
-            <Ionicons name="log-in-outline" size={16} color="#7DD3FC" style={{ marginRight: 6 }} />
-            <Text style={styles.linkText}>Already have an account? Login</Text>
-            <Ionicons name="arrow-forward" size={16} color="#7DD3FC" style={{ marginLeft: 6 }} />
-          </View>
-        </TouchableOpacity>
-      </View>
+            {/* Secondary CTA - Society */}
+            <Animated.View style={{ transform: [{ scale: secondaryBtnScale }] }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigate('RegisterSociety')}
+                onPressIn={() => handlePressIn(secondaryBtnScale)}
+                onPressOut={() => handlePressOut(secondaryBtnScale)}
+              >
+                <View style={styles.secondaryButton}>
+                  <View style={styles.buttonContent}>
+                    <View style={[styles.iconBox, styles.iconBoxSecondary]}>
+                      <Ionicons name="business" size={20} color="#10B981" />
+                    </View>
+                    <View style={styles.buttonTextContainer}>
+                      <Text style={styles.secondaryButtonText}>Register Society</Text>
+                      <Text style={[styles.buttonSubtext, styles.buttonSubtextSecondary]}>
+                        Manage your community
+                      </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#10B981" />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
 
-      {/* Features Section */}
-      <View style={styles.featuresSection}>
-        <Text style={styles.sectionTitle}>How It Works</Text>
-        
-        <View style={styles.featureCard}>
-          <Text style={styles.stepNumber}>1</Text>
-          <View style={styles.featureCardContent}>
-            <Text style={styles.featureCardTitle}>Take a Photo</Text>
-            <Text style={styles.featureCardDesc}>Snap a picture of the civic issue - no typing needed</Text>
-          </View>
-        </View>
+            {/* Login Link */}
+            <Animated.View style={{ transform: [{ scale: loginBtnScale }] }}>
+              <TouchableOpacity
+                style={styles.loginLink}
+                onPress={() => navigate('Login')}
+                onPressIn={() => handlePressIn(loginBtnScale)}
+                onPressOut={() => handlePressOut(loginBtnScale)}
+              >
+                <Text style={styles.loginText}>Already a member?</Text>
+                <Text style={styles.loginHighlight}> Sign In</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </Animated.View>
 
-        <View style={styles.featureCard}>
-          <Text style={styles.stepNumber}>2</Text>
-          <View style={styles.featureCardContent}>
-            <Text style={styles.featureCardTitle}>AI Classification</Text>
-            <Text style={styles.featureCardDesc}>Our AI automatically identifies and categorizes the problem</Text>
-          </View>
-        </View>
+          {/* How It Works Section */}
+          <Animated.View
+            style={[
+              styles.featuresSection,
+              {
+                opacity: cardAnim,
+                transform: [
+                  {
+                    translateY: cardAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [50, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>How It Works</Text>
+            
+            {/* Step Cards */}
+            <View style={styles.stepsContainer}>
+              <View style={styles.stepCard}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>1</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <View style={styles.stepIconContainer}>
+                    <Ionicons name="camera-outline" size={24} color="#00D9FF" />
+                  </View>
+                  <Text style={styles.stepTitle}>Capture</Text>
+                  <Text style={styles.stepDesc}>
+                    Take a photo of any civic issue in your neighborhood
+                  </Text>
+                </View>
+              </View>
 
-        <View style={styles.featureCard}>
-          <Text style={styles.stepNumber}>3</Text>
-          <View style={styles.featureCardContent}>
-            <Text style={styles.featureCardTitle}>NGO Resolution</Text>
-            <Text style={styles.featureCardDesc}>Routed to relevant NGOs and tracked until resolved</Text>
+              <View style={styles.stepCard}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>2</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <View style={styles.stepIconContainer}>
+                    <Ionicons name="bulb-outline" size={24} color="#00D9FF" />
+                  </View>
+                  <Text style={styles.stepTitle}>AI Analysis</Text>
+                  <Text style={styles.stepDesc}>
+                    Our smart system categorizes and prioritizes the issue
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.stepCard}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>3</Text>
+                </View>
+                <View style={styles.stepContent}>
+                  <View style={styles.stepIconContainer}>
+                    <Ionicons name="checkmark-circle-outline" size={24} color="#00D9FF" />
+                  </View>
+                  <Text style={styles.stepTitle}>Get Resolved</Text>
+                  <Text style={styles.stepDesc}>
+                    Issue is routed to NGOs and tracked until completion
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Stats Section */}
+          <View style={styles.statsSection}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>10K+</Text>
+              <Text style={styles.statLabel}>Issues Resolved</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>500+</Text>
+              <Text style={styles.statLabel}>NGOs Active</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>50+</Text>
+              <Text style={styles.statLabel}>Cities</Text>
+            </View>
           </View>
-        </View>
-      </View>
-    </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>© 2024 JanMitra</Text>
+            <Text style={styles.footerSubtext}>Building better communities together</Text>
+          </View>
+        </ScrollView>
+      </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#0A0E27' 
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0F1A',
   },
-  content: { 
-    paddingBottom: 40 
+  gradient: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 40,
   },
 
-  // Header Section
-  header: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 30,
+  // Header Section - Improved logo and name in one line
+  headerSection: {
+    paddingTop: 50,
     paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  logoContainer: { 
-    backgroundColor: '#ffffff', 
-    padding: 10, 
-    borderRadius: 16, 
-    overflow: 'hidden', 
-    width: 100, 
-    height: 100, 
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  logoWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
+    marginRight: 16,
+    shadowColor: '#00D9FF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 6,
   },
-  logoLarge: { 
-    width: 80, 
-    height: 80 
+  headerLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+  },
+  brandInfo: {
+    flex: 1,
   },
   appName: {
-    fontSize: 32,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 4,
     letterSpacing: 0.5,
   },
   tagline: {
     fontSize: 13,
-    color: '#7DD3FC',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '600',
+    color: '#00D9FF',
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
 
-  // Hero Section
-  hero: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginHorizontal: 20,
-    marginBottom: 24,
+  // Hero Section - Adjusted for new logo position
+  heroSection: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+
+  // Hero Card
+  heroCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
     padding: 24,
-    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(125, 211, 252, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  heroCardHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  badgeText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '600',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: '#FFFFFF',
+    lineHeight: 40,
     marginBottom: 12,
-    textAlign: 'center',
   },
-  subtitle: {
+  heroSubtitle: {
     fontSize: 15,
-    color: '#B4C7E7',
-    lineHeight: 22,
-    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.7)',
+    lineHeight: 24,
     marginBottom: 20,
   },
-  featureGrid: {
+  featurePills: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
     flexWrap: 'wrap',
+    gap: 8,
   },
-  featurePill: {
-    backgroundColor: 'rgba(125, 211, 252, 0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 217, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(125, 211, 252, 0.3)',
+    borderColor: 'rgba(0, 217, 255, 0.25)',
   },
-  featureText: {
-    color: '#7DD3FC',
-    fontSize: 13,
+  pillText: {
+    color: '#00D9FF',
+    fontSize: 12,
     fontWeight: '600',
-  },
-
-  ctaTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // CTA Section
-  ctaSection: {
+  ctaContainer: {
     paddingHorizontal: 20,
-    gap: 16,
-    marginBottom: 32,
+    paddingTop: 30,
+    gap: 14,
   },
-  primaryCta: {
-    backgroundColor: '#10B981',
+  primaryButton: {
+    borderRadius: 20,
     paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingHorizontal: 20,
+    shadowColor: '#00D9FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  primaryCtaText: {
-    color: '#FFFFFF',
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  iconBoxSecondary: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  primaryButtonText: {
+    color: '#0A0E27',
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 2,
   },
-  ctaSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  secondaryCta: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#10B981',
-  },
-  secondaryCtaText: {
+  secondaryButtonText: {
     color: '#10B981',
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 2,
   },
-  linkButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
+  buttonSubtext: {
+    color: 'rgba(10, 14, 39, 0.7)',
+    fontSize: 13,
+    marginTop: 2,
   },
-  linkText: {
-    color: '#7DD3FC',
+  buttonSubtextSecondary: {
+    color: 'rgba(16, 185, 129, 0.7)',
+  },
+  loginLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  loginText: {
+    color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 14,
-    fontWeight: '600',
+  },
+  loginHighlight: {
+    color: '#00D9FF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 
   // Features Section
   featuresSection: {
     paddingHorizontal: 20,
+    paddingTop: 40,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: 'center',
   },
-  featureCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+  stepsContainer: {
     gap: 16,
+  },
+  stepCard: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(125, 211, 252, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   stepNumber: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#10B981',
-    width: 50,
-    textAlign: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 217, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
-  featureCardContent: {
+  stepNumberText: {
+    color: '#00D9FF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  stepContent: {
     flex: 1,
   },
-  featureCardTitle: {
+  stepIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 217, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stepTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 4,
   },
-  featureCardDesc: {
+  stepDesc: {
     fontSize: 14,
-    color: '#B4C7E7',
+    color: 'rgba(255, 255, 255, 0.6)',
     lineHeight: 20,
+  },
+
+  // Stats Section
+  statsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 217, 255, 0.08)',
+    marginHorizontal: 20,
+    marginTop: 40,
+    paddingVertical: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 217, 255, 0.15)',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#00D9FF',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+
+  // Footer
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    marginTop: 30,
+  },
+  footerText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  footerSubtext: {
+    color: 'rgba(255, 255, 255, 0.3)',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
