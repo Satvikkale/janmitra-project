@@ -5,20 +5,28 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface NGOData {
     _id: string;
+    id?: string;
     ngoName: string;
     email: string;
     registrationNumber: string;
     address: string;
-    contactPerson: string;
     contactPhone: string;
     description: string;
     isVerified: boolean;
     createdAt: string;
+    updatedAt?: string;
     subtype: string;
     city: string;
-    categories: string[];
-    establishedYear: string;
     website: string;
+    contactEmail?: string;
+    contactPersonName?: string;
+    workingHours?: string;
+    serviceRadiusKm?: number | null;
+    roles?: string[];
+    location?: Record<string, unknown> | null;
+    jurisdiction?: Record<string, unknown> | null;
+    settings?: Record<string, unknown> | null;
+    [key: string]: any;
 }
 
 interface NGOResponse {
@@ -101,6 +109,48 @@ export default function ManageNGOsPage() {
         });
     };
 
+    const formatValue = (value: any) => {
+        if (value === null || value === undefined || value === '') {
+            return 'Not provided';
+        }
+
+        if (Array.isArray(value)) {
+            return value.length > 0 ? value.join(', ') : 'Not provided';
+        }
+
+        if (typeof value === 'boolean') {
+            return value ? 'Yes' : 'No';
+        }
+
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+
+        return String(value);
+    };
+
+    const detailFields: Array<{ key: string; label: string }> = [
+        { key: 'ngoName', label: 'NGO Name' },
+        { key: 'subtype', label: 'Subtype' },
+        { key: 'city', label: 'City' },
+        { key: 'contactPersonName', label: 'Contact Person Name' },
+        { key: 'contactEmail', label: 'Contact Email' },
+        { key: 'contactPhone', label: 'Contact Phone' },
+        { key: 'address', label: 'Address' },
+        { key: 'registrationNumber', label: 'Registration Number' },
+        { key: 'website', label: 'Website' },
+        { key: 'workingHours', label: 'Working Hours' },
+        { key: 'serviceRadiusKm', label: 'Service Radius (km)' },
+        { key: 'roles', label: 'Roles' },
+        { key: 'location', label: 'Location' },
+        { key: 'jurisdiction', label: 'Jurisdiction' },
+        { key: 'settings', label: 'Settings' },
+        { key: 'description', label: 'Description' },
+        { key: 'isVerified', label: 'Verified' },
+        { key: 'createdAt', label: 'Created At' },
+        { key: 'updatedAt', label: 'Updated At' },
+    ];
+
     const NGOCard = ({ ngo, showActions = false }: { ngo: NGOData; showActions?: boolean }) => (
         <div className="bg-white rounded-lg border border-gray-200 p-5 hover:border-teal-300 transition-colors">
             <div className="flex justify-between items-start mb-3">
@@ -135,22 +185,23 @@ export default function ManageNGOsPage() {
             </p>
 
             <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-                <div>
-                    <p className="text-gray-400 text-xs">Contact</p>
-                    <p className="text-gray-700">{ngo.contactPerson}</p>
-                </div>
-                <div>
-                    <p className="text-gray-400 text-xs">Phone</p>
-                    <p className="text-gray-700">{ngo.contactPhone}</p>
-                </div>
-                <div>
-                    <p className="text-gray-400 text-xs">Email</p>
-                    <p className="text-gray-700 truncate">{ngo.email}</p>
-                </div>
-                <div>
-                    <p className="text-gray-400 text-xs">Registered</p>
-                    <p className="text-gray-700">{formatDate(ngo.createdAt)}</p>
-                </div>
+                {detailFields.map(({ key, label }) => {
+                    const value = ngo[key];
+                    if (value === undefined) {
+                        return null;
+                    }
+
+                    const displayValue = key === 'createdAt' || key === 'updatedAt'
+                        ? formatDate(String(value))
+                        : formatValue(value);
+
+                    return (
+                        <div key={key} className="min-w-0">
+                            <p className="text-gray-400 text-xs lowercase tracking-wide">{label}</p>
+                            <p className="text-gray-700 break-words whitespace-pre-wrap">{displayValue}</p>
+                        </div>
+                    );
+                })}
             </div>
 
             {showActions && (

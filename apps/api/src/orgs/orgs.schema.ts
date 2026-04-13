@@ -55,6 +55,7 @@ export class Org extends Document {
   @Prop() registrationNumber?: string;
   @Prop() establishedYear?: number;
   @Prop() website?: string;
+  @Prop({ type: [String], default: [] }) categories?: string[];
   @Prop() passwordHash?: string;
   @Prop({ default: false }) isVerified?: boolean;
   @Prop({ type: [String], default: [] }) roles?: string[];

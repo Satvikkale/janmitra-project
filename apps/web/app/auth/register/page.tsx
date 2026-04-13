@@ -384,7 +384,7 @@ export default function Register() {
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
               }`}
             >
-              NGO Org
+              NGO
             </button>
             <button
               type="button"

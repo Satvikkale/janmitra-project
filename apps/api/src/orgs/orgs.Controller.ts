@@ -92,22 +92,19 @@ export class OrgsController {
   }
 
   private transformNgoForAdmin(ngo: any) {
+    const { passwordHash, __v, ...safeNgo } = ngo || {};
     return {
-      _id: ngo._id,
-      ngoName: ngo.name,
-      email: ngo.contactEmail || '',
-      registrationNumber: ngo.registrationNumber || '',
-      address: ngo.address || '',
-      contactPerson: ngo.contactPersonName || '',
-      contactPhone: ngo.contactPhone || '',
-      description: ngo.description || '',
-      isVerified: ngo.isVerified || false,
-      createdAt: ngo.createdAt || new Date(),
-      subtype: ngo.subtype || '',
-      city: ngo.city || '',
-      categories: ngo.categories || [],
-      establishedYear: ngo.establishedYear || '',
-      website: ngo.website || '',
+      ...safeNgo,
+      _id: String(safeNgo._id || ''),
+      id: String(safeNgo._id || ''),
+      ngoName: safeNgo.name || '',
+      email: safeNgo.contactEmail || '',
+      contactPerson: safeNgo.contactPersonName || '',
+      createdAt: safeNgo.createdAt || new Date(),
+      updatedAt: safeNgo.updatedAt || new Date(),
+      categories: Array.isArray(safeNgo.categories) ? safeNgo.categories : [],
+      roles: Array.isArray(safeNgo.roles) ? safeNgo.roles : [],
+      serviceRadiusKm: safeNgo.serviceRadiusKm ?? null,
     };
   }
 

@@ -109,7 +109,7 @@ export class OrgsService {
   }
 
   async getAllNgos() {
-    return this.model.find({ type: 'NGO' }).sort({ createdAt: -1 });
+    return this.model.find({ type: 'NGO' }).select('-passwordHash').sort({ createdAt: -1 }).lean();
   }
 
   async getPendingNgos() {

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
@@ -20,13 +21,17 @@ import { apiFetch } from '../api';
 const API_BASE = (Constants.expoConfig?.extra as any).apiBase as string;
 
 const COLORS = {
-  primary: '#1976D2',
-  secondary: '#FFC107',
-  background: '#F5F6FA',
-  card: '#FFF',
-  text: '#222',
-  border: '#E0E0E0',
-  error: '#FF3B30',
+  primary: '#6366F1',
+  primaryDark: '#4F46E5',
+  secondary: '#F59E0B',
+  background: '#F3F4F6',
+  card: '#FFFFFF',
+  text: '#1F2937',
+  textLight: '#6B7280',
+  border: '#E5E7EB',
+  error: '#EF4444',
+  success: '#10B981',
+  inputBg: '#F9FAFB',
 };
 
 export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: () => void }) {
@@ -49,7 +54,6 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
     try {
       setLoadingSocieties(true);
       console.log('Fetching societies from:', `${API_BASE}/v1/societies`);
-      // Fetch without auth - public endpoint for approved societies
       const response = await fetch(`${API_BASE}/v1/societies`);
       console.log('Response status:', response.status);
       
@@ -71,7 +75,6 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
   };
 
   const handleRegister = async () => {
-    // Validation
     if (!name.trim()) {
       Alert.alert('Validation Error', 'Please enter your name');
       return;
@@ -106,7 +109,6 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
         password,
       });
 
-      // Auto-request join to selected society
       if (selectedSocietyId) {
         try {
           const society = societies.find(s => s._id === selectedSocietyId);
@@ -128,7 +130,6 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
           );
         }
       }
-      // Navigation happens automatically via useLocalAuth context
     } catch (e: any) {
       Alert.alert('Registration Error', e.message || 'Could not register. Please try again.');
     } finally {
@@ -136,8 +137,13 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
     }
   };
 
+  const isFormValid = name.trim() && (email.trim() || phone.trim()) && 
+    password.trim() && password.length >= 6 && 
+    password === confirmPassword && selectedSocietyId;
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -145,116 +151,178 @@ export default function RegisterUser({ onNavigateLogin }: { onNavigateLogin?: ()
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Join Your Society</Text>
-              <Text style={styles.subtitle}>Register as a society resident</Text>
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoIcon}>🏠</Text>
             </View>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join your society community</Text>
+          </View>
 
-            <View style={styles.form}>
-              <Text style={styles.label}>Full Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                placeholderTextColor="#999"
-                value={name}
-                onChangeText={setName}
-                editable={!loading}
-              />
-
-              <Text style={styles.label}>Email *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="your.email@example.com"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!loading}
-              />
-
-              <Text style={styles.label}>Phone Number (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter phone number"
-                placeholderTextColor="#999"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                editable={!loading}
-              />
-
-              <Text style={styles.label}>Select Your Society *</Text>
-              {loadingSocieties ? (
-                <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
-              ) : (
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={selectedSocietyId}
-                    onValueChange={(value) => setSelectedSocietyId(value)}
-                    enabled={!loading}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="-- Select your society --" value="" />
-                    {societies.map((soc) => (
-                      <Picker.Item key={soc._id} label={soc.name} value={soc._id} />
-                    ))}
-                  </Picker>
+          {/* Form Card */}
+          <View style={styles.card}>
+            <View style={styles.formSection}>
+              {/* Name Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>👤</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#9CA3AF"
+                    value={name}
+                    onChangeText={setName}
+                    editable={!loading}
+                  />
                 </View>
-              )}
-              <Text style={styles.hint}>
-                Tip: Don't see your society? Ask your society head to register it first from "Society Onboarding".
-              </Text>
+              </View>
 
-              <Text style={styles.label}>Password *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Minimum 6 characters"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-              />
+              {/* Email Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>✉️</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="your.email@example.com"
+                    placeholderTextColor="#9CA3AF"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    editable={!loading}
+                  />
+                </View>
+              </View>
 
-              <Text style={styles.label}>Confirm Password *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter password"
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                editable={!loading}
-              />
+              {/* Phone Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Phone Number <Text style={styles.optional}>(Optional)</Text></Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>📱</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter phone number"
+                    placeholderTextColor="#9CA3AF"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    editable={!loading}
+                  />
+                </View>
+              </View>
 
+              {/* Society Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Select Your Society</Text>
+                {loadingSocieties ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.loadingText}>Loading societies...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={selectedSocietyId}
+                      onValueChange={(value) => setSelectedSocietyId(value)}
+                      enabled={!loading}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="🏘️  Choose your society" value="" />
+                      {societies.map((soc) => (
+                        <Picker.Item key={soc._id} label={`🏢 ${soc.name}`} value={soc._id} />
+                      ))}
+                    </Picker>
+                  </View>
+                )}
+                <Text style={styles.hint}>
+                  💡 Don't see your society? Ask your society head to register it first.
+                </Text>
+              </View>
+
+              {/* Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>🔒</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Minimum 6 characters"
+                    placeholderTextColor="#9CA3AF"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+              </View>
+
+              {/* Confirm Password Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Confirm Password</Text>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>🔐</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Re-enter your password"
+                    placeholderTextColor="#9CA3AF"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    editable={!loading}
+                  />
+                </View>
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <Text style={styles.errorText}>⚠️ Passwords do not match</Text>
+                )}
+              </View>
+
+              {/* Register Button */}
               {loading ? (
-                <ActivityIndicator size="large" color={COLORS.primary} style={styles.loader} />
+                <View style={styles.loaderContainer}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                  <Text style={styles.loaderText}>Creating your account...</Text>
+                </View>
               ) : (
                 <TouchableOpacity
                   style={[
                     styles.button,
-                    (!name || !password || !selectedSocietyId || password !== confirmPassword)
-                      ? styles.buttonDisabled
-                      : null,
+                    !isFormValid && styles.buttonDisabled
                   ]}
                   onPress={handleRegister}
-                  disabled={!name || !password || !selectedSocietyId || password !== confirmPassword}
+                  disabled={!isFormValid}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.buttonText}>Register</Text>
+                  <Text style={styles.buttonText}>Create Account</Text>
+                  <Text style={styles.buttonArrow}>→</Text>
                 </TouchableOpacity>
               )}
 
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Login Link */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account? </Text>
-                <TouchableOpacity onPress={onNavigateLogin}>
-                  <Text style={styles.footerLink}>Login</Text>
+                <TouchableOpacity onPress={onNavigateLogin} activeOpacity={0.7}>
+                  <Text style={styles.footerLink}>Sign In</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
+
+          {/* Footer */}
+          <Text style={styles.termsText}>
+            By creating an account, you agree to our Terms of Service
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -271,101 +339,198 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
   },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  header: {
+  headerSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  logoIcon: {
+    fontSize: 36,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontSize: 32,
+    fontWeight: '700',
+    color: COLORS.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: COLORS.textLight,
   },
-  form: {
-    width: '100%',
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  formSection: {
+    padding: 24,
+  },
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 8,
+    marginLeft: 4,
+  },
+  optional: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: COLORS.textLight,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    fontSize: 18,
+    marginRight: 12,
   },
   input: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 14,
+    flex: 1,
+    paddingVertical: 16,
     fontSize: 16,
     color: COLORS.text,
-    marginBottom: 16,
-  },
-  hint: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: -12,
-    marginBottom: 16,
-    fontStyle: 'italic',
   },
   pickerContainer: {
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderRadius: 8,
-    marginBottom: 16,
     overflow: 'hidden',
   },
   picker: {
-    height: 50,
+    height: 56,
     width: '100%',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 14,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  hint: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginTop: 10,
+    marginLeft: 4,
+    lineHeight: 18,
+  },
+  errorText: {
+    fontSize: 12,
+    color: COLORS.error,
+    marginTop: 6,
+    marginLeft: 4,
   },
   button: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   buttonDisabled: {
-    backgroundColor: '#CCC',
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  loader: {
-    marginVertical: 20,
+  buttonArrow: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    marginLeft: 10,
+    fontWeight: '600',
+  },
+  loaderContainer: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: COLORS.textLight,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
   },
   footerText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: COLORS.textLight,
   },
   footerLink: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    fontWeight: 'bold',
+    fontSize: 15,
+    color: COLORS.primary,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  termsText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 20,
   },
 });
